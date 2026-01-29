@@ -1,0 +1,16 @@
+package com.hus.mim_backend.application.profile.dto;
+
+import java.util.UUID;
+
+public class StudentProfileResponse {
+    private UUID id;
+    private String firstName;
+    private String lastName;
+    private String university;
+    private String major;
+    private String bio;
+    private String cvUrl;
+    private String studentType;
+
+    // TODO: Implement getters/setters/builder
+}
