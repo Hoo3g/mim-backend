@@ -12,7 +12,10 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * JWT Token adapter implementing TokenProvider port
@@ -73,11 +76,30 @@ public class JwtTokenAdapter implements TokenProvider {
 
     @Override
     public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parser()
+        return parseClaims(token).getSubject();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Set<String> getRolesFromToken(String token) {
+        Claims claims = parseClaims(token);
+        Object rolesClaim = claims.get("roles");
+        if (rolesClaim instanceof List<?> list) {
+            Set<String> roles = new HashSet<>();
+            for (Object item : list) {
+                if (item instanceof String s)
+                    roles.add(s);
+            }
+            return roles;
+        }
+        return Set.of();
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        return claims.getSubject();
     }
 }

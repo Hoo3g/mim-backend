@@ -13,6 +13,7 @@ import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.domain.auth.model.Email;
 import com.hus.mim_backend.domain.auth.model.User;
+import com.hus.mim_backend.domain.shared.DomainException;
 
 /**
  * Auth Service Implementation - orchestrates authentication use cases
@@ -37,14 +38,14 @@ public class AuthServiceImpl implements LoginUseCase, RegisterUseCase, RefreshTo
         Email email = new Email(request.getEmail());
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+                .orElseThrow(() -> new DomainException("Invalid credentials"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Invalid credentials");
+            throw new DomainException("Invalid credentials");
         }
 
         if (!user.isActive()) {
-            throw new IllegalStateException("Account is not active");
+            throw new DomainException("Account is pending approval or has been suspended");
         }
 
         String accessToken = tokenProvider.generateAccessToken(user);
@@ -62,7 +63,7 @@ public class AuthServiceImpl implements LoginUseCase, RegisterUseCase, RefreshTo
         Email email = new Email(request.getEmail());
 
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new DomainException("Email already in use");
         }
 
         String encryptedPassword = passwordEncoder.encode(request.getPassword());
@@ -77,12 +78,12 @@ public class AuthServiceImpl implements LoginUseCase, RegisterUseCase, RefreshTo
     @Override
     public AuthResponse refreshToken(String refreshToken) {
         if (!tokenProvider.validateToken(refreshToken)) {
-            throw new IllegalArgumentException("Invalid token");
+            throw new DomainException("Invalid or expired refresh token");
         }
 
         String emailVal = tokenProvider.getEmailFromToken(refreshToken);
         User user = userRepository.findByEmail(new Email(emailVal))
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new DomainException("User not found"));
 
         String newAccessToken = tokenProvider.generateAccessToken(user);
 
