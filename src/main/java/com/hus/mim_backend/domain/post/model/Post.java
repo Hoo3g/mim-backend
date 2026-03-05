@@ -1,6 +1,8 @@
 package com.hus.mim_backend.domain.post.model;
 
 import com.hus.mim_backend.domain.shared.DomainException;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,6 +14,8 @@ import java.util.UUID;
  * Contains domain business logic for state transitions.
  * Maps to: posts table
  */
+@Setter
+@Getter
 public class Post {
     private UUID id;
     private UUID authorId;
@@ -118,190 +122,6 @@ public class Post {
     // -------------------------------------------------------
     // Getters & Setters
     // -------------------------------------------------------
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getAuthorId() {
-        return authorId;
-    }
-
-    public void setAuthorId(UUID authorId) {
-        this.authorId = authorId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getRequirements() {
-        return requirements;
-    }
-
-    public void setRequirements(String requirements) {
-        this.requirements = requirements;
-    }
-
-    public String getBenefits() {
-        return benefits;
-    }
-
-    public void setBenefits(String benefits) {
-        this.benefits = benefits;
-    }
-
-    public String getAchievements() {
-        return achievements;
-    }
-
-    public void setAchievements(String achievements) {
-        this.achievements = achievements;
-    }
-
-    public PostType getPostType() {
-        return postType;
-    }
-
-    public void setPostType(PostType postType) {
-        this.postType = postType;
-    }
-
-    public JobType getJobType() {
-        return jobType;
-    }
-
-    public void setJobType(JobType jobType) {
-        this.jobType = jobType;
-    }
-
-    public String getStudentCvUrl() {
-        return studentCvUrl;
-    }
-
-    public void setStudentCvUrl(String studentCvUrl) {
-        this.studentCvUrl = studentCvUrl;
-    }
-
-    public Map<String, Object> getDisplayInfo() {
-        return displayInfo;
-    }
-
-    public void setDisplayInfo(Map<String, Object> displayInfo) {
-        this.displayInfo = displayInfo;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public String getSalaryRange() {
-        return salaryRange;
-    }
-
-    public void setSalaryRange(String salaryRange) {
-        this.salaryRange = salaryRange;
-    }
-
-    public String getContactEmail() {
-        return contactEmail;
-    }
-
-    public void setContactEmail(String contactEmail) {
-        this.contactEmail = contactEmail;
-    }
-
-    public String getContactPhone() {
-        return contactPhone;
-    }
-
-    public void setContactPhone(String contactPhone) {
-        this.contactPhone = contactPhone;
-    }
-
-    public List<String> getTags() {
-        return tags;
-    }
-
-    public void setTags(List<String> tags) {
-        this.tags = tags;
-    }
-
-    public PostStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(PostStatus status) {
-        this.status = status;
-    }
-
-    public ApprovalStatus getApprovalStatus() {
-        return approvalStatus;
-    }
-
-    public void setApprovalStatus(ApprovalStatus approvalStatus) {
-        this.approvalStatus = approvalStatus;
-    }
-
-    public UUID getModeratorId() {
-        return moderatorId;
-    }
-
-    public void setModeratorId(UUID moderatorId) {
-        this.moderatorId = moderatorId;
-    }
-
-    public String getModerationComment() {
-        return moderationComment;
-    }
-
-    public void setModerationComment(String moderationComment) {
-        this.moderationComment = moderationComment;
-    }
-
-    public int getViewCount() {
-        return viewCount;
-    }
-
-    public void setViewCount(int viewCount) {
-        this.viewCount = viewCount;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
 
     // -------------------------------------------------------
     // Builder

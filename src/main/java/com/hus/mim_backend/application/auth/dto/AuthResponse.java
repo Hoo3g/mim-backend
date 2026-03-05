@@ -1,39 +1,20 @@
 package com.hus.mim_backend.application.auth.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * Authentication response DTO
  */
+@Setter
+@Getter
 public class AuthResponse {
+    // Getters and Setters
     private String accessToken;
     private String refreshToken;
     private UserResponse user;
 
     public AuthResponse() {
-    }
-
-    // Getters and Setters
-    public String getAccessToken() {
-        return accessToken;
-    }
-
-    public void setAccessToken(String accessToken) {
-        this.accessToken = accessToken;
-    }
-
-    public String getRefreshToken() {
-        return refreshToken;
-    }
-
-    public void setRefreshToken(String refreshToken) {
-        this.refreshToken = refreshToken;
-    }
-
-    public UserResponse getUser() {
-        return user;
-    }
-
-    public void setUser(UserResponse user) {
-        this.user = user;
     }
 
     public static AuthResponseBuilder builder() {

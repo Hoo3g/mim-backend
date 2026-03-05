@@ -1,51 +1,24 @@
 package com.hus.mim_backend.application.auth.dto;
 
 import com.hus.mim_backend.domain.auth.model.User;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Set;
 
 /**
  * User response DTO
  */
+@Setter
+@Getter
 public class UserResponse {
+    // Getters and Setters
     private String id;
     private String email;
     private String status;
     private Set<String> roles;
 
     public UserResponse() {
-    }
-
-    // Getters and Setters
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Set<String> getRoles() {
-        return roles;
-    }
-
-    public void setRoles(Set<String> roles) {
-        this.roles = roles;
     }
 
     public static UserResponse fromDomain(User user) {
