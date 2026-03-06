@@ -2,6 +2,7 @@ package com.hus.mim_backend.application.port.output;
 
 import com.hus.mim_backend.domain.auth.model.User;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
@@ -21,4 +22,9 @@ public interface TokenProvider {
      * Used by the security filter to populate GrantedAuthorities.
      */
     Set<String> getRolesFromToken(String token);
+
+    /**
+     * Extract expiration time from JWT token.
+     */
+    LocalDateTime getExpiryFromToken(String token);
 }

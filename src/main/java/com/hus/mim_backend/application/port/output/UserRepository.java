@@ -15,9 +15,15 @@ public interface UserRepository {
 
     Optional<User> findByEmail(Email email);
 
+    Optional<User> findByStudentCode(String studentCode);
+
     User save(User user);
 
     boolean existsByEmail(Email email);
+
+    boolean existsByStudentCode(String studentCode);
+
+    void upsertStudentCode(UUID userId, String studentCode);
 
     List<User> findByAccountStatus(String status);
 

@@ -1,6 +1,5 @@
 package com.hus.mim_backend.infrastructure.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.infrastructure.adapter.security.JwtAuthenticationFilter;
 import com.hus.mim_backend.shared.api.ApiResponse;
@@ -15,6 +14,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 

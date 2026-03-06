@@ -6,6 +6,7 @@ public class ApiEndpoints {
     // Auth Endpoints
     public static final String AUTH = API_V1 + "/auth";
     public static final String LOGIN = "/login";
+    public static final String GOOGLE_LOGIN = "/google";
     public static final String REGISTER = "/register";
     public static final String LOGOUT = "/logout";
     public static final String REFRESH_TOKEN = "/refresh-token";

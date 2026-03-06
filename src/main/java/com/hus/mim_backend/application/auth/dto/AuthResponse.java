@@ -11,6 +11,9 @@ import lombok.Setter;
 public class AuthResponse {
     // Getters and Setters
     private String accessToken;
+    /**
+     * Deprecated for clients. Server now sends refresh token via HttpOnly cookie.
+     */
     private String refreshToken;
     private UserResponse user;
 

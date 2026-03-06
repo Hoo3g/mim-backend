@@ -1,5 +1,6 @@
 package com.hus.mim_backend.infrastructure.adapter.web;
 
+import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * Authentication errors (invalid credentials, missing/invalid refresh token).
+     */
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthException(AuthException ex) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage(), "UNAUTHORIZED"));
+    }
 
     /**
      * Domain rule violations (invalid email, business constraint failures, etc.)
