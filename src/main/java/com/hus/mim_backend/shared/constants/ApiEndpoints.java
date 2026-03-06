@@ -2,6 +2,7 @@ package com.hus.mim_backend.shared.constants;
 
 public class ApiEndpoints {
     public static final String API_V1 = "/api/v1";
+    public static final String API_PUBLIC = "/api/public";
 
     // Auth Endpoints
     public static final String AUTH = API_V1 + "/auth";
@@ -20,6 +21,11 @@ public class ApiEndpoints {
 
     // Recruitment Endpoints
     public static final String RECRUITMENT = API_V1 + "/recruitment";
+
+    // Storage Endpoints
+    public static final String STORAGE = API_V1 + "/storage";
+    public static final String PUBLIC_STORAGE = API_PUBLIC + "/storage";
+    public static final String RESEARCH_PDFS = "/research-pdfs";
 
     private ApiEndpoints() {
         // Private constructor to prevent instantiation
