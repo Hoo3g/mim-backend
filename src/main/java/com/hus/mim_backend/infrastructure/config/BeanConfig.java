@@ -17,37 +17,54 @@ import com.hus.mim_backend.application.news.service.NewsServiceImpl;
 import com.hus.mim_backend.application.news.usecase.ManageNewsUseCase;
 import com.hus.mim_backend.application.port.output.AdminModerationRepository;
 import com.hus.mim_backend.application.port.output.ApplicationRepository;
+import com.hus.mim_backend.application.port.output.ApplicationPortalRepository;
 import com.hus.mim_backend.application.port.output.CompanyRepository;
 import com.hus.mim_backend.application.port.output.LecturerRepository;
 import com.hus.mim_backend.application.port.output.ModerationLogRepository;
 import com.hus.mim_backend.application.port.output.NewsRepository;
 import com.hus.mim_backend.application.port.output.PasswordEncoder;
 import com.hus.mim_backend.application.port.output.PostRepository;
+import com.hus.mim_backend.application.port.output.ProfilePortalRepository;
 import com.hus.mim_backend.application.port.output.PublicPostRepository;
 import com.hus.mim_backend.application.port.output.RbacRepository;
 import com.hus.mim_backend.application.port.output.RefreshTokenRepository;
+import com.hus.mim_backend.application.port.output.ResearchBookmarkRepository;
+import com.hus.mim_backend.application.port.output.ResearchCategoryRepository;
 import com.hus.mim_backend.application.port.output.ResearchHeroContentRepository;
 import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.application.port.output.ResearchPaperRepository;
 import com.hus.mim_backend.application.port.output.SavedPostRepository;
+import com.hus.mim_backend.application.port.output.SpecializationRepository;
 import com.hus.mim_backend.application.port.output.StudentRepository;
 import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.service.PostServiceImpl;
 import com.hus.mim_backend.application.post.service.PublicPostQueryServiceImpl;
+import com.hus.mim_backend.application.post.service.ApplicationPortalService;
+import com.hus.mim_backend.application.post.usecase.ApplicationPortalUseCase;
 import com.hus.mim_backend.application.post.usecase.ApplyToPostUseCase;
 import com.hus.mim_backend.application.post.usecase.ManagePostUseCase;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
 import com.hus.mim_backend.application.profile.service.CompanyProfileService;
 import com.hus.mim_backend.application.profile.service.LecturerProfileService;
+import com.hus.mim_backend.application.profile.service.ProfilePortalService;
 import com.hus.mim_backend.application.profile.service.StudentProfileService;
 import com.hus.mim_backend.application.profile.usecase.ManageCompanyProfileUseCase;
 import com.hus.mim_backend.application.profile.usecase.ManageLecturerProfileUseCase;
 import com.hus.mim_backend.application.profile.usecase.ManageStudentProfileUseCase;
+import com.hus.mim_backend.application.profile.usecase.ProfilePortalUseCase;
 import com.hus.mim_backend.application.rbac.service.RbacServiceImpl;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
+import com.hus.mim_backend.application.research.service.ResearchBookmarkService;
+import com.hus.mim_backend.application.research.service.ResearchCategoryServiceImpl;
 import com.hus.mim_backend.application.research.service.ResearchPortalServiceImpl;
+import com.hus.mim_backend.application.research.service.SpecializationServiceImpl;
+import com.hus.mim_backend.application.research.usecase.ManageSpecializationUseCase;
+import com.hus.mim_backend.application.research.usecase.ManageResearchCategoryUseCase;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
+import com.hus.mim_backend.application.research.usecase.QueryResearchCategoryUseCase;
+import com.hus.mim_backend.application.research.usecase.QuerySpecializationUseCase;
+import com.hus.mim_backend.application.research.usecase.ResearchBookmarkUseCase;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -168,6 +185,18 @@ public class BeanConfig {
         return publicPostQueryService;
     }
 
+    @Bean
+    @ConditionalOnBean(ApplicationPortalRepository.class)
+    public ApplicationPortalService applicationPortalService(ApplicationPortalRepository applicationPortalRepository) {
+        return new ApplicationPortalService(applicationPortalRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(ApplicationPortalService.class)
+    public ApplicationPortalUseCase applicationPortalUseCase(ApplicationPortalService applicationPortalService) {
+        return applicationPortalService;
+    }
+
     // -------------------------------------------------------
     // News
     // -------------------------------------------------------
@@ -232,6 +261,55 @@ public class BeanConfig {
         return researchPortalService;
     }
 
+    @Bean
+    @ConditionalOnBean(ResearchBookmarkRepository.class)
+    public ResearchBookmarkService researchBookmarkService(ResearchBookmarkRepository researchBookmarkRepository) {
+        return new ResearchBookmarkService(researchBookmarkRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(ResearchBookmarkService.class)
+    public ResearchBookmarkUseCase researchBookmarkUseCase(ResearchBookmarkService researchBookmarkService) {
+        return researchBookmarkService;
+    }
+
+    @Bean
+    @ConditionalOnBean(ResearchCategoryRepository.class)
+    public ResearchCategoryServiceImpl researchCategoryService(ResearchCategoryRepository researchCategoryRepository) {
+        return new ResearchCategoryServiceImpl(researchCategoryRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(ResearchCategoryServiceImpl.class)
+    public QueryResearchCategoryUseCase queryResearchCategoryUseCase(ResearchCategoryServiceImpl researchCategoryService) {
+        return researchCategoryService;
+    }
+
+    @Bean
+    @ConditionalOnBean(ResearchCategoryServiceImpl.class)
+    public ManageResearchCategoryUseCase manageResearchCategoryUseCase(
+            ResearchCategoryServiceImpl researchCategoryService) {
+        return researchCategoryService;
+    }
+
+    @Bean
+    @ConditionalOnBean(SpecializationRepository.class)
+    public SpecializationServiceImpl specializationService(SpecializationRepository specializationRepository) {
+        return new SpecializationServiceImpl(specializationRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(SpecializationServiceImpl.class)
+    public QuerySpecializationUseCase querySpecializationUseCase(SpecializationServiceImpl specializationService) {
+        return specializationService;
+    }
+
+    @Bean
+    @ConditionalOnBean(SpecializationServiceImpl.class)
+    public ManageSpecializationUseCase manageSpecializationUseCase(SpecializationServiceImpl specializationService) {
+        return specializationService;
+    }
+
     // -------------------------------------------------------
     // Profiles (3 separate services — no method conflict)
     // -------------------------------------------------------
@@ -270,5 +348,18 @@ public class BeanConfig {
     @ConditionalOnBean(LecturerProfileService.class)
     public ManageLecturerProfileUseCase manageLecturerProfileUseCase(LecturerProfileService service) {
         return service;
+    }
+
+    @Bean
+    @ConditionalOnBean({ ProfilePortalRepository.class, SpecializationRepository.class })
+    public ProfilePortalService profilePortalService(ProfilePortalRepository profilePortalRepository,
+            SpecializationRepository specializationRepository) {
+        return new ProfilePortalService(profilePortalRepository, specializationRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(ProfilePortalService.class)
+    public ProfilePortalUseCase profilePortalUseCase(ProfilePortalService profilePortalService) {
+        return profilePortalService;
     }
 }

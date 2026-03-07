@@ -18,7 +18,6 @@ import java.util.UUID;
 public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     private static final String ROLE_LECTURER = "LECTURER";
     private static final String DEFAULT_JOURNAL = "MIM Draft";
-    private static final String DEFAULT_RESEARCH_AREA = "Chưa phân loại";
     private static final String DEFAULT_PDF_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
     private final ResearchPortalRepository repository;
@@ -64,6 +63,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         String normalizedTitle = request.getTitle().trim();
         String normalizedAbstract = request.getAbstractText().trim();
         String normalizedPdfUrl = normalizePdfUrl(request.getPdfUrl());
+        String normalizedResearchArea = resolveActiveResearchArea(request.getResearchArea());
         String category = isLecturer ? ROLE_LECTURER : "STUDENT";
 
         UUID paperId = repository.createPaperWithMainAuthor(
@@ -74,7 +74,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 normalizedPdfUrl,
                 Year.now().getValue(),
                 DEFAULT_JOURNAL,
-                DEFAULT_RESEARCH_AREA,
+                normalizedResearchArea,
                 category);
 
         PaperResponse response = repository.findPaperById(paperId)
@@ -92,11 +92,13 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             return UpdatePaperResult.forbidden();
         }
 
+        String normalizedResearchArea = resolveActiveResearchArea(request.getResearchArea());
         int updated = repository.updatePaper(
                 paperId,
                 request.getTitle().trim(),
                 request.getAbstractText().trim(),
-                normalizePdfUrl(request.getPdfUrl()));
+                normalizePdfUrl(request.getPdfUrl()),
+                normalizedResearchArea);
         if (updated == 0) {
             return UpdatePaperResult.notFound();
         }
@@ -117,8 +119,11 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     private void validateUpsertRequest(UpsertPaperRequest request) {
-        if (request == null || !StringUtils.hasText(request.getTitle()) || !StringUtils.hasText(request.getAbstractText())) {
-            throw new DomainException("Title and abstract are required");
+        if (request == null
+                || !StringUtils.hasText(request.getTitle())
+                || !StringUtils.hasText(request.getAbstractText())
+                || !StringUtils.hasText(request.getResearchArea())) {
+            throw new DomainException("Title, abstract and researchArea are required");
         }
     }
 
@@ -131,5 +136,13 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
     private void loadAuthors(PaperResponse paper) {
         paper.setAuthors(repository.findAuthorsByPaperId(paper.getId()));
+    }
+
+    private String resolveActiveResearchArea(String researchArea) {
+        if (!StringUtils.hasText(researchArea)) {
+            throw new DomainException("researchArea is required");
+        }
+        return repository.findActiveResearchCategoryName(researchArea.trim())
+                .orElseThrow(() -> new DomainException("Research area is invalid or inactive"));
     }
 }

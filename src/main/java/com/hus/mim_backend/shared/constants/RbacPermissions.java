@@ -14,6 +14,7 @@ public final class RbacPermissions {
     public static final String MODERATION_PAPERS_VIEW = "MODERATION_PAPERS_VIEW";
     public static final String MODERATION_PAPERS_ACTION = "MODERATION_PAPERS_ACTION";
     public static final String RESEARCH_HERO_EDIT = "RESEARCH_HERO_EDIT";
+    public static final String RESEARCH_CATEGORY_MANAGE = "RESEARCH_CATEGORY_MANAGE";
     public static final String RBAC_MANAGE = "RBAC_MANAGE";
 
     private RbacPermissions() {

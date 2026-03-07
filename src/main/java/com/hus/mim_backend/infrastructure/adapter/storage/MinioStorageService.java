@@ -11,10 +11,15 @@ import io.minio.PutObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.StatObjectResponse;
 import io.minio.errors.ErrorResponseException;
+import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -26,6 +31,7 @@ import java.util.UUID;
 @Service
 public class MinioStorageService {
     private static final String PDF_CONTENT_TYPE = "application/pdf";
+    private static final String META_ORIGINAL_FILENAME = "original-filename";
     private static final Set<String> IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg",
             "image/png",
@@ -48,15 +54,33 @@ public class MinioStorageService {
             throw new DomainException("PDF file is required");
         }
 
-        String originalFilename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
+        String originalFilename = resolveOriginalFilename(file, "research-paper.pdf");
+        String normalizedName = originalFilename.toLowerCase(Locale.ROOT);
         boolean pdfMime = PDF_CONTENT_TYPE.equalsIgnoreCase(file.getContentType());
-        boolean pdfExtension = originalFilename.endsWith(".pdf");
+        boolean pdfExtension = normalizedName.endsWith(".pdf");
         if (!pdfMime && !pdfExtension) {
             throw new DomainException("Only PDF files are allowed");
         }
 
         String objectKey = buildPdfObjectKey();
-        return uploadObject(file, objectKey, PDF_CONTENT_TYPE, "Failed to upload PDF to MinIO");
+        return uploadObject(file, objectKey, PDF_CONTENT_TYPE, originalFilename, "Failed to upload PDF to MinIO");
+    }
+
+    public String uploadProfileCv(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new DomainException("PDF file is required");
+        }
+
+        String originalFilename = resolveOriginalFilename(file, "profile-cv.pdf");
+        String normalizedName = originalFilename.toLowerCase(Locale.ROOT);
+        boolean pdfMime = PDF_CONTENT_TYPE.equalsIgnoreCase(file.getContentType());
+        boolean pdfExtension = normalizedName.endsWith(".pdf");
+        if (!pdfMime && !pdfExtension) {
+            throw new DomainException("Only PDF files are allowed");
+        }
+
+        String objectKey = buildProfileCvObjectKey();
+        return uploadObject(file, objectKey, PDF_CONTENT_TYPE, originalFilename, "Failed to upload profile CV to MinIO");
     }
 
     public String uploadResearchHeroImage(MultipartFile file) {
@@ -64,13 +88,12 @@ public class MinioStorageService {
             throw new DomainException("Image file is required");
         }
 
-        String originalFilename = file.getOriginalFilename() == null
-                ? ""
-                : file.getOriginalFilename().toLowerCase(Locale.ROOT);
+        String originalFilename = resolveOriginalFilename(file, "research-hero-image");
+        String normalizedName = originalFilename.toLowerCase(Locale.ROOT);
         String contentType = file.getContentType() == null
                 ? ""
                 : file.getContentType().toLowerCase(Locale.ROOT);
-        String extension = extractExtension(originalFilename);
+        String extension = extractExtension(normalizedName);
 
         boolean imageMime = IMAGE_CONTENT_TYPES.contains(contentType);
         boolean imageExtension = IMAGE_EXTENSIONS.contains(extension);
@@ -81,15 +104,47 @@ public class MinioStorageService {
         String normalizedContentType = normalizeImageContentType(contentType, extension);
         String normalizedExtension = normalizeImageExtension(extension, normalizedContentType);
         String objectKey = "research-hero-" + UUID.randomUUID() + "." + normalizedExtension;
-        return uploadObject(file, objectKey, normalizedContentType, "Failed to upload image to MinIO");
+        return uploadObject(file, objectKey, normalizedContentType, originalFilename, "Failed to upload image to MinIO");
+    }
+
+    public String uploadAvatarImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new DomainException("Image file is required");
+        }
+
+        String originalFilename = resolveOriginalFilename(file, "avatar-image");
+        String normalizedName = originalFilename.toLowerCase(Locale.ROOT);
+        String contentType = file.getContentType() == null
+                ? ""
+                : file.getContentType().toLowerCase(Locale.ROOT);
+        String extension = extractExtension(normalizedName);
+
+        boolean imageMime = IMAGE_CONTENT_TYPES.contains(contentType);
+        boolean imageExtension = IMAGE_EXTENSIONS.contains(extension);
+        if (!imageMime && !imageExtension) {
+            throw new DomainException("Only JPG, PNG, WEBP images are allowed");
+        }
+
+        String normalizedContentType = normalizeImageContentType(contentType, extension);
+        String normalizedExtension = normalizeImageExtension(extension, normalizedContentType);
+        String objectKey = "user-avatar-" + UUID.randomUUID() + "." + normalizedExtension;
+        return uploadObject(file, objectKey, normalizedContentType, originalFilename, "Failed to upload avatar image to MinIO");
     }
 
     public Optional<StoredObject> readResearchPdf(String objectKey) {
         return readObject(objectKey, PDF_CONTENT_TYPE, "Failed to read PDF from MinIO");
     }
 
+    public Optional<StoredObject> readProfileCv(String objectKey) {
+        return readObject(objectKey, PDF_CONTENT_TYPE, "Failed to read profile CV from MinIO");
+    }
+
     public Optional<StoredObject> readResearchHeroImage(String objectKey) {
         return readObject(objectKey, "image/jpeg", "Failed to read image from MinIO");
+    }
+
+    public Optional<StoredObject> readAvatarImage(String objectKey) {
+        return readObject(objectKey, "image/jpeg", "Failed to read avatar image from MinIO");
     }
 
     private Optional<StoredObject> readObject(String objectKey, String fallbackContentType, String errorMessage) {
@@ -111,7 +166,8 @@ public class MinioStorageService {
                 contentType = fallbackContentType;
             }
 
-            return Optional.of(new StoredObject(stream, contentType, stat.size()));
+            String originalFilename = resolveOriginalFilenameFromMetadata(stat.userMetadata(), objectKey);
+            return Optional.of(new StoredObject(stream, contentType, stat.size(), originalFilename));
         } catch (ErrorResponseException ex) {
             if ("NoSuchKey".equalsIgnoreCase(ex.errorResponse().code())
                     || "NoSuchBucket".equalsIgnoreCase(ex.errorResponse().code())) {
@@ -140,7 +196,11 @@ public class MinioStorageService {
         return "research-paper-" + UUID.randomUUID() + ".pdf";
     }
 
-    private String uploadObject(MultipartFile file, String objectKey, String contentType, String errorMessage) {
+    private String buildProfileCvObjectKey() {
+        return "profile-cv-" + UUID.randomUUID() + ".pdf";
+    }
+
+    private String uploadObject(MultipartFile file, String objectKey, String contentType, String originalFilename, String errorMessage) {
         try {
             ensureBucketExists();
             try (InputStream inputStream = file.getInputStream()) {
@@ -150,6 +210,7 @@ public class MinioStorageService {
                                 .object(objectKey)
                                 .stream(inputStream, file.getSize(), -1)
                                 .contentType(contentType)
+                                .userMetadata(Map.of(META_ORIGINAL_FILENAME, encodeMetadataValue(originalFilename)))
                                 .build());
             }
             return objectKey;
@@ -194,6 +255,64 @@ public class MinioStorageService {
         };
     }
 
-    public record StoredObject(InputStream stream, String contentType, long size) {
+    private String resolveOriginalFilename(MultipartFile file, String fallback) {
+        String candidate = file == null ? null : file.getOriginalFilename();
+        if (!StringUtils.hasText(candidate)) {
+            return fallback;
+        }
+
+        String cleaned = candidate.replace('\\', '/').trim();
+        int slashIndex = cleaned.lastIndexOf('/');
+        String filenameOnly = slashIndex >= 0 ? cleaned.substring(slashIndex + 1) : cleaned;
+        String sanitized = filenameOnly.replaceAll("[\\r\\n\\t]", "_").trim();
+        if (!StringUtils.hasText(sanitized)) {
+            return fallback;
+        }
+        return sanitized;
+    }
+
+    private String resolveOriginalFilenameFromMetadata(Map<String, String> metadata, String objectKey) {
+        if (metadata != null) {
+            for (Map.Entry<String, String> entry : metadata.entrySet()) {
+                if (entry.getKey() != null && META_ORIGINAL_FILENAME.equalsIgnoreCase(entry.getKey())) {
+                    String decoded = decodeMetadataValue(entry.getValue());
+                    if (StringUtils.hasText(decoded)) {
+                        return decoded;
+                    }
+                }
+            }
+        }
+        return fallbackFilenameFromObjectKey(objectKey);
+    }
+
+    private String fallbackFilenameFromObjectKey(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            return "download";
+        }
+        String cleaned = objectKey.replace('\\', '/');
+        int slashIndex = cleaned.lastIndexOf('/');
+        String filename = slashIndex >= 0 ? cleaned.substring(slashIndex + 1) : cleaned;
+        return filename.isBlank() ? "download" : filename;
+    }
+
+    private String encodeMetadataValue(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "download";
+        }
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String decodeMetadataValue(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ex) {
+            return value;
+        }
+    }
+
+    public record StoredObject(InputStream stream, String contentType, long size, String originalFilename) {
     }
 }

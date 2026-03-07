@@ -16,6 +16,7 @@ public class UserResponse {
     private String id;
     private String email;
     private String status;
+    private String avatarUrl;
     private Set<String> roles;
     private Set<String> permissions;
 
@@ -27,6 +28,7 @@ public class UserResponse {
         response.setId(user.getId().toString());
         response.setEmail(user.getEmail().getValue());
         response.setStatus(user.getStatus().name());
+        response.setAvatarUrl(user.getAvatarUrl());
         response.setRoles(user.getRoles());
         response.setPermissions(Set.of());
         return response;
@@ -51,6 +53,11 @@ public class UserResponse {
 
         public UserResponseBuilder status(String status) {
             response.setStatus(status);
+            return this;
+        }
+
+        public UserResponseBuilder avatarUrl(String avatarUrl) {
+            response.setAvatarUrl(avatarUrl);
             return this;
         }
 

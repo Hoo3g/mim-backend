@@ -165,8 +165,9 @@ public class AuthServiceImpl
         User user = userRepository.findByEmail(email)
                 .orElseGet(() -> createUserFromGoogle(email, userType, googleUser.pictureUrl()));
 
-        if ((user.getAvatarUrl() == null || user.getAvatarUrl().isBlank())
-                && googleUser.pictureUrl() != null && !googleUser.pictureUrl().isBlank()) {
+        // Always sync avatar from Google when claim exists to avoid stale/broken URL.
+        if (googleUser.pictureUrl() != null && !googleUser.pictureUrl().isBlank()
+                && !googleUser.pictureUrl().equals(user.getAvatarUrl())) {
             user.setAvatarUrl(googleUser.pictureUrl());
             user = userRepository.save(user);
         }

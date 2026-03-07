@@ -29,22 +29,42 @@ public class ApiEndpoints {
     public static final String ADMIN_STORAGE = ADMIN + "/storage";
     public static final String CONTENT = API_V1 + "/content";
     public static final String RESEARCH_HERO = "/research-hero";
+    public static final String ADMIN_RESEARCH_CATEGORIES = ADMIN + "/research-categories";
+    public static final String ADMIN_SPECIALIZATIONS = ADMIN + "/specializations";
 
     // Research Endpoints
     public static final String RESEARCH = API_V1 + "/research-papers";
     public static final String RESEARCH_MY = "/my";
     public static final String RESEARCH_BY_ID = "/{paperId}";
+    public static final String RESEARCH_BOOKMARK_BY_PAPER = "/{paperId}/bookmarks";
+    public static final String RESEARCH_BOOKMARK_MY = "/bookmarks/me";
+    public static final String RESEARCH_CATEGORIES = API_V1 + "/research-categories";
+    public static final String SPECIALIZATIONS = API_V1 + "/specializations";
+    public static final String RESEARCH_CATEGORY_BY_ID = "/{categoryId}";
 
     // Recruitment Endpoints
     public static final String RECRUITMENT = API_V1 + "/recruitment";
     public static final String POSTS = API_V1 + "/posts";
     public static final String POST_BY_ID = "/{postId}";
+    public static final String POST_APPLY = "/{postId}/apply";
+    public static final String POST_APPLICATIONS_MY = "/applications/me";
+    public static final String POST_APPLICATIONS_RECEIVED = "/applications/received";
+
+    // Profile Endpoints
+    public static final String PROFILE = API_V1 + "/profile";
+    public static final String PROFILE_ME = "/me";
+    public static final String PROFILE_ME_DASHBOARD = "/me/dashboard";
+    public static final String PROFILE_ME_STUDENT = "/me/student";
+    public static final String PROFILE_ME_COMPANY = "/me/company";
+    public static final String PROFILE_ME_LECTURER = "/me/lecturer";
 
     // Storage Endpoints
     public static final String STORAGE = API_V1 + "/storage";
     public static final String PUBLIC_STORAGE = API_PUBLIC + "/storage";
     public static final String RESEARCH_PDFS = "/research-pdfs";
     public static final String RESEARCH_HERO_IMAGES = "/research-hero-images";
+    public static final String PROFILE_CVS = "/profile-cvs";
+    public static final String AVATARS = "/avatars";
 
     private ApiEndpoints() {
         // Private constructor to prevent instantiation

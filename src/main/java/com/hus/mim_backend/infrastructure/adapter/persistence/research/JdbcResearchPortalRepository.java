@@ -100,6 +100,14 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             ON CONFLICT (id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
             """;
 
+    private static final String SELECT_ACTIVE_CATEGORY_NAME_SQL = """
+            SELECT name
+            FROM research_categories
+            WHERE active = TRUE
+              AND LOWER(name) = LOWER(?)
+            LIMIT 1
+            """;
+
     private static final String INSERT_PAPER_SQL = """
             INSERT INTO research_papers (
                 id, title, abstract, pdf_url, publication_year,
@@ -126,6 +134,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             UPDATE research_papers
             SET title = ?,
                 abstract = ?,
+                research_area = ?,
                 pdf_url = COALESCE(NULLIF(?, ''), pdf_url),
                 approval_status = CASE
                     WHEN COALESCE(approval_status, 'PENDING') = 'REJECTED' THEN 'PENDING'
@@ -237,6 +246,17 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     }
 
     @Override
+    public Optional<String> findActiveResearchCategoryName(String researchAreaName) {
+        List<String> rows = jdbcTemplate.query(SELECT_ACTIVE_CATEGORY_NAME_SQL,
+                (rs, rowNum) -> rs.getString("name"),
+                researchAreaName);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(rows.getFirst());
+    }
+
+    @Override
     @Transactional
     public UUID createPaperWithMainAuthor(UUID userId,
             boolean lecturerAuthor,
@@ -276,7 +296,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     }
 
     @Override
-    public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl) {
-        return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, pdfUrl, paperId);
+    public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea) {
+        return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperId);
     }
 }

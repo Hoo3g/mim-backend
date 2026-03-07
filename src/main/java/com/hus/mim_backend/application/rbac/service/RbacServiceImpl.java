@@ -36,7 +36,8 @@ public class RbacServiceImpl implements ManageRbacUseCase {
             RbacPermissions.MODERATION_POSTS_ACTION,
             RbacPermissions.MODERATION_PAPERS_VIEW,
             RbacPermissions.MODERATION_PAPERS_ACTION,
-            RbacPermissions.RESEARCH_HERO_EDIT);
+            RbacPermissions.RESEARCH_HERO_EDIT,
+            RbacPermissions.RESEARCH_CATEGORY_MANAGE);
 
     private final RbacRepository rbacRepository;
 

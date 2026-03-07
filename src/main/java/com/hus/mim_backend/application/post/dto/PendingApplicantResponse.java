@@ -3,23 +3,22 @@ package com.hus.mim_backend.application.post.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public class ApplicationResponse {
-    private UUID id;
+public class PendingApplicantResponse {
+    private UUID applicationId;
     private UUID postId;
     private String postTitle;
     private UUID applicantId;
     private String applicantName;
-    private String status;
     private String message;
     private String cvUrl;
-    private LocalDateTime createdAt;
+    private LocalDateTime appliedAt;
 
-    public UUID getId() {
-        return id;
+    public UUID getApplicationId() {
+        return applicationId;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    public void setApplicationId(UUID applicationId) {
+        this.applicationId = applicationId;
     }
 
     public UUID getPostId() {
@@ -54,14 +53,6 @@ public class ApplicationResponse {
         this.applicantName = applicantName;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public String getMessage() {
         return message;
     }
@@ -78,11 +69,11 @@ public class ApplicationResponse {
         this.cvUrl = cvUrl;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public LocalDateTime getAppliedAt() {
+        return appliedAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setAppliedAt(LocalDateTime appliedAt) {
+        this.appliedAt = appliedAt;
     }
 }

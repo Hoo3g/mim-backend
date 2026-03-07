@@ -28,6 +28,8 @@ public interface ResearchPortalRepository {
 
     void upsertLecturerProfile(UUID userId);
 
+    Optional<String> findActiveResearchCategoryName(String researchAreaName);
+
     UUID createPaperWithMainAuthor(UUID userId,
                                    boolean lecturerAuthor,
                                    String title,
@@ -40,5 +42,5 @@ public interface ResearchPortalRepository {
 
     boolean isOwner(UUID paperId, UUID userId);
 
-    int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl);
+    int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea);
 }
