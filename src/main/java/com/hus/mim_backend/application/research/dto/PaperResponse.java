@@ -15,6 +15,8 @@ public class PaperResponse {
     private String researchArea;
     private String category;
     private int viewCount;
+    private String approvalStatus;
+    private String moderationComment;
     private List<PaperAuthorResponse> authors = new ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -65,6 +67,22 @@ public class PaperResponse {
 
     public void setViewCount(int viewCount) {
         this.viewCount = viewCount;
+    }
+
+    public String getApprovalStatus() {
+        return approvalStatus;
+    }
+
+    public void setApprovalStatus(String approvalStatus) {
+        this.approvalStatus = approvalStatus;
+    }
+
+    public String getModerationComment() {
+        return moderationComment;
+    }
+
+    public void setModerationComment(String moderationComment) {
+        this.moderationComment = moderationComment;
     }
 
     public Integer getPublicationYear() {

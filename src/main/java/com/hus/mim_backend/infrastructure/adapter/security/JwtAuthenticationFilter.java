@@ -1,6 +1,7 @@
 package com.hus.mim_backend.infrastructure.adapter.security;
 
 import com.hus.mim_backend.application.port.output.TokenProvider;
+import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,8 +12,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * JWT Authentication Filter — extracts token from Authorization header,
@@ -21,9 +22,11 @@ import java.util.stream.Collectors;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
+    private final ManageRbacUseCase manageRbacUseCase;
 
-    public JwtAuthenticationFilter(TokenProvider tokenProvider) {
+    public JwtAuthenticationFilter(TokenProvider tokenProvider, ManageRbacUseCase manageRbacUseCase) {
         this.tokenProvider = tokenProvider;
+        this.manageRbacUseCase = manageRbacUseCase;
     }
 
     @Override
@@ -37,13 +40,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (tokenProvider.validateToken(token)) {
                 String email = tokenProvider.getEmailFromToken(token);
-
-                // Fix: load roles from token and convert to GrantedAuthority
-                // so that hasRole("ADMIN") / @PreAuthorize work correctly
                 Set<String> roles = tokenProvider.getRolesFromToken(token);
-                var authorities = roles.stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                        .collect(Collectors.toList());
+                Set<String> permissions = Set.of();
+                try {
+                    Set<String> dbRoles = manageRbacUseCase.getRolesByEmail(email);
+                    if (!dbRoles.isEmpty()) {
+                        roles = dbRoles;
+                    }
+                    permissions = manageRbacUseCase.getEffectivePermissionsByEmail(email);
+                } catch (RuntimeException ignored) {
+                    // Fallback to token roles only when RBAC lookup fails.
+                }
+
+                var authorities = new LinkedHashSet<SimpleGrantedAuthority>();
+                for (String role : roles) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+                }
+                for (String permission : permissions) {
+                    authorities.add(new SimpleGrantedAuthority("PERM_" + permission));
+                }
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(email,
                         null, authorities);

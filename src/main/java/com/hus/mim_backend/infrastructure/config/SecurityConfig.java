@@ -1,6 +1,7 @@
 package com.hus.mim_backend.infrastructure.config;
 
 import com.hus.mim_backend.application.port.output.TokenProvider;
+import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.infrastructure.adapter.security.JwtAuthenticationFilter;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import org.springframework.http.HttpMethod;
@@ -28,10 +29,12 @@ import java.util.List;
 public class SecurityConfig {
 
     private final TokenProvider tokenProvider;
+    private final ManageRbacUseCase manageRbacUseCase;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public SecurityConfig(TokenProvider tokenProvider) {
+    public SecurityConfig(TokenProvider tokenProvider, ManageRbacUseCase manageRbacUseCase) {
         this.tokenProvider = tokenProvider;
+        this.manageRbacUseCase = manageRbacUseCase;
     }
 
     @Bean
@@ -66,11 +69,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/v1/research-papers/my").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/research-papers/**").permitAll()
-                        // Admin endpoints require ADMIN role
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/content/**").permitAll()
+                        // Fine-grained RBAC is enforced with @PreAuthorize per endpoint.
+                        .requestMatchers("/api/v1/admin/**").authenticated()
                         .anyRequest().authenticated())
 
-                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider),
+                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider, manageRbacUseCase),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

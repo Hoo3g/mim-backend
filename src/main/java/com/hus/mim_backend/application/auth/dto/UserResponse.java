@@ -17,6 +17,7 @@ public class UserResponse {
     private String email;
     private String status;
     private Set<String> roles;
+    private Set<String> permissions;
 
     public UserResponse() {
     }
@@ -27,6 +28,7 @@ public class UserResponse {
         response.setEmail(user.getEmail().getValue());
         response.setStatus(user.getStatus().name());
         response.setRoles(user.getRoles());
+        response.setPermissions(Set.of());
         return response;
     }
 
@@ -54,6 +56,11 @@ public class UserResponse {
 
         public UserResponseBuilder roles(Set<String> roles) {
             response.setRoles(roles);
+            return this;
+        }
+
+        public UserResponseBuilder permissions(Set<String> permissions) {
+            response.setPermissions(permissions);
             return this;
         }
 

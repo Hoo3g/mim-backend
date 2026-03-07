@@ -10,6 +10,7 @@ import com.hus.mim_backend.application.auth.usecase.LoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LogoutUseCase;
 import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
+import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.infrastructure.adapter.security.RefreshTokenCookieService;
 import com.hus.mim_backend.shared.api.ApiResponse;
@@ -21,6 +22,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Web adapter for authentication endpoints
@@ -35,16 +39,19 @@ public class AuthController {
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
     private final RefreshTokenCookieService refreshTokenCookieService;
+    private final ManageRbacUseCase manageRbacUseCase;
 
     public AuthController(LoginUseCase loginUseCase, GoogleLoginUseCase googleLoginUseCase,
             RegisterUseCase registerUseCase, RefreshTokenUseCase refreshTokenUseCase,
-            LogoutUseCase logoutUseCase, RefreshTokenCookieService refreshTokenCookieService) {
+            LogoutUseCase logoutUseCase, RefreshTokenCookieService refreshTokenCookieService,
+            ManageRbacUseCase manageRbacUseCase) {
         this.loginUseCase = loginUseCase;
         this.googleLoginUseCase = googleLoginUseCase;
         this.registerUseCase = registerUseCase;
         this.refreshTokenUseCase = refreshTokenUseCase;
         this.logoutUseCase = logoutUseCase;
         this.refreshTokenCookieService = refreshTokenCookieService;
+        this.manageRbacUseCase = manageRbacUseCase;
     }
 
     @PostMapping(ApiEndpoints.LOGIN)
@@ -92,9 +99,24 @@ public class AuthController {
     }
 
     private void attachRefreshCookieAndSanitizeResponse(AuthResponse authResponse, HttpServletResponse response) {
+        enrichPermissions(authResponse);
         if (authResponse.getRefreshToken() != null && !authResponse.getRefreshToken().isBlank()) {
             refreshTokenCookieService.addRefreshTokenCookie(response, authResponse.getRefreshToken());
         }
         authResponse.setRefreshToken(null);
+    }
+
+    private void enrichPermissions(AuthResponse authResponse) {
+        if (authResponse == null || authResponse.getUser() == null || authResponse.getUser().getId() == null) {
+            return;
+        }
+
+        try {
+            UUID userId = UUID.fromString(authResponse.getUser().getId());
+            Set<String> permissions = manageRbacUseCase.getEffectivePermissionsByUserId(userId);
+            authResponse.getUser().setPermissions(permissions);
+        } catch (RuntimeException ex) {
+            authResponse.getUser().setPermissions(Set.of());
+        }
     }
 }
