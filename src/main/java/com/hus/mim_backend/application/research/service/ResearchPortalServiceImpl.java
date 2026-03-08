@@ -18,7 +18,6 @@ import java.util.UUID;
 public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     private static final String ROLE_LECTURER = "LECTURER";
     private static final String DEFAULT_JOURNAL = "MIM Draft";
-    private static final String DEFAULT_PDF_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
     private final ResearchPortalRepository repository;
 
@@ -51,6 +50,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     @Override
     public PaperResponse createPaper(String currentUserEmail, UpsertPaperRequest request) {
         validateUpsertRequest(request);
+        validatePdfUrlForCreate(request.getPdfUrl());
 
         UUID userId = resolveCurrentUserId(currentUserEmail);
         boolean isLecturer = repository.hasRole(userId, ROLE_LECTURER);
@@ -86,6 +86,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     @Override
     public UpdatePaperResult updatePaper(String currentUserEmail, UUID paperId, UpsertPaperRequest request) {
         validateUpsertRequest(request);
+        validatePdfUrlIfProvided(request.getPdfUrl());
 
         UUID userId = resolveCurrentUserId(currentUserEmail);
         if (!repository.isOwner(paperId, userId)) {
@@ -128,10 +129,30 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     private String normalizePdfUrl(String pdfUrl) {
-        if (pdfUrl == null || pdfUrl.isBlank()) {
-            return DEFAULT_PDF_URL;
+        if (!StringUtils.hasText(pdfUrl)) {
+            return "";
         }
         return pdfUrl.trim();
+    }
+
+    private void validatePdfUrlForCreate(String pdfUrl) {
+        if (!StringUtils.hasText(pdfUrl)) {
+            throw new DomainException("PDF URL is required. Please upload PDF to MinIO first.");
+        }
+        validatePdfUrlIfProvided(pdfUrl);
+    }
+
+    private void validatePdfUrlIfProvided(String pdfUrl) {
+        if (!StringUtils.hasText(pdfUrl)) {
+            return;
+        }
+
+        String normalized = pdfUrl.trim();
+        boolean isMinioPublicUrl = normalized.contains("/api/public/storage/research-pdfs/");
+        boolean isLegacyStoragePath = normalized.contains("/api/v1/storage/research-pdfs/");
+        if (!isMinioPublicUrl && !isLegacyStoragePath) {
+            throw new DomainException("PDF URL must point to MinIO storage endpoint.");
+        }
     }
 
     private void loadAuthors(PaperResponse paper) {

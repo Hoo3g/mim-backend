@@ -45,6 +45,7 @@ public class ApiEndpoints {
     // Recruitment Endpoints
     public static final String RECRUITMENT = API_V1 + "/recruitment";
     public static final String POSTS = API_V1 + "/posts";
+    public static final String POSTS_ME = "/me";
     public static final String POST_BY_ID = "/{postId}";
     public static final String POST_APPLY = "/{postId}/apply";
     public static final String POST_APPLICATIONS_MY = "/applications/me";
