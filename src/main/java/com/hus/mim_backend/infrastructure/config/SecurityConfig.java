@@ -4,6 +4,7 @@ import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.infrastructure.adapter.security.JwtAuthenticationFilter;
 import com.hus.mim_backend.shared.api.ApiResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -31,10 +33,17 @@ public class SecurityConfig {
     private final TokenProvider tokenProvider;
     private final ManageRbacUseCase manageRbacUseCase;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final List<String> allowedOrigins;
 
-    public SecurityConfig(TokenProvider tokenProvider, ManageRbacUseCase manageRbacUseCase) {
+    public SecurityConfig(TokenProvider tokenProvider,
+            ManageRbacUseCase manageRbacUseCase,
+            @Value("${app.cors.allowed-origins:http://localhost:4200,http://localhost:4000}") String allowedOriginsCsv) {
         this.tokenProvider = tokenProvider;
         this.manageRbacUseCase = manageRbacUseCase;
+        this.allowedOrigins = Arrays.stream(allowedOriginsCsv.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
     }
 
     @Bean
@@ -67,6 +76,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/api/v1/profile/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/posts/me").authenticated()
                         .requestMatchers("/api/v1/posts/applications/**").authenticated()
@@ -96,10 +106,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Allowed origins: dev (Angular) + production (update when deploying)
-        config.setAllowedOrigins(List.of(
-                "http://localhost:4200",
-                "http://localhost:4000"));
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
