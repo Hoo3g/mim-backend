@@ -12,13 +12,11 @@ import java.util.UUID;
 public interface NewsRepository {
     Optional<News> findById(UUID id);
 
-    List<News> findByAuthorId(UUID authorId);
+    List<News> findPublishedOrderByPinnedAndCreatedAtDesc();
 
     List<News> findAllOrderByCreatedAtDesc();
 
-    List<News> searchByTitle(String keyword);
-
     News save(News news);
 
-    void deleteById(UUID id);
+    int deleteById(UUID id);
 }

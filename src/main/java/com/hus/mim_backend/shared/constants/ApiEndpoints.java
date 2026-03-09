@@ -31,6 +31,7 @@ public class ApiEndpoints {
     public static final String RESEARCH_HERO = "/research-hero";
     public static final String ADMIN_RESEARCH_CATEGORIES = ADMIN + "/research-categories";
     public static final String ADMIN_SPECIALIZATIONS = ADMIN + "/specializations";
+    public static final String ADMIN_NEWS = ADMIN + "/news";
 
     // Research Endpoints
     public static final String RESEARCH = API_V1 + "/research-papers";
@@ -41,6 +42,10 @@ public class ApiEndpoints {
     public static final String RESEARCH_CATEGORIES = API_V1 + "/research-categories";
     public static final String SPECIALIZATIONS = API_V1 + "/specializations";
     public static final String RESEARCH_CATEGORY_BY_ID = "/{categoryId}";
+
+    // News Endpoints
+    public static final String NEWS = API_V1 + "/news";
+    public static final String NEWS_BY_ID = "/{newsId}";
 
     // Recruitment Endpoints
     public static final String RECRUITMENT = API_V1 + "/recruitment";

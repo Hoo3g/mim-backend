@@ -92,6 +92,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/research-papers/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/content/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/**").permitAll()
                         // Fine-grained RBAC is enforced with @PreAuthorize per endpoint.
                         .requestMatchers("/api/v1/admin/**").authenticated()
                         .anyRequest().authenticated())
