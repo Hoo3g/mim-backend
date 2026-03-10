@@ -7,6 +7,8 @@ import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseC
 import com.hus.mim_backend.domain.shared.DomainException;
 import org.springframework.util.StringUtils;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Year;
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +19,10 @@ import java.util.UUID;
  */
 public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     private static final String ROLE_LECTURER = "LECTURER";
+    private static final String ROLE_STUDENT = "STUDENT";
     private static final String DEFAULT_JOURNAL = "MIM Draft";
+    private static final String PUBLIC_RESEARCH_PDF_PREFIX = "/api/public/storage/research-pdfs/";
+    private static final String LEGACY_RESEARCH_PDF_PREFIX = "/api/v1/storage/research-pdfs/";
 
     private final ResearchPortalRepository repository;
 
@@ -53,7 +58,8 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         validatePdfUrlForCreate(request.getPdfUrl());
 
         UUID userId = resolveCurrentUserId(currentUserEmail);
-        boolean isLecturer = repository.hasRole(userId, ROLE_LECTURER);
+        String authorRole = resolveResearchAuthorRole(userId);
+        boolean isLecturer = ROLE_LECTURER.equals(authorRole);
         if (isLecturer) {
             repository.upsertLecturerProfile(userId);
         } else {
@@ -64,7 +70,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         String normalizedAbstract = request.getAbstractText().trim();
         String normalizedPdfUrl = normalizePdfUrl(request.getPdfUrl());
         String normalizedResearchArea = resolveActiveResearchArea(request.getResearchArea());
-        String category = isLecturer ? ROLE_LECTURER : "STUDENT";
+        String category = authorRole;
 
         UUID paperId = repository.createPaperWithMainAuthor(
                 userId,
@@ -147,10 +153,39 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             return;
         }
 
-        String normalized = pdfUrl.trim();
-        boolean isMinioPublicUrl = normalized.contains("/api/public/storage/research-pdfs/");
-        boolean isLegacyStoragePath = normalized.contains("/api/v1/storage/research-pdfs/");
-        if (!isMinioPublicUrl && !isLegacyStoragePath) {
+        if (!isAllowedResearchPdfUrl(pdfUrl.trim())) {
+            throw new DomainException("PDF URL must point to MinIO storage endpoint.");
+        }
+    }
+
+    private String resolveResearchAuthorRole(UUID userId) {
+        if (repository.hasRole(userId, ROLE_LECTURER)) {
+            return ROLE_LECTURER;
+        }
+        if (repository.hasRole(userId, ROLE_STUDENT)) {
+            return ROLE_STUDENT;
+        }
+        throw new DomainException("Only student or lecturer accounts can create research papers");
+    }
+
+    private boolean isAllowedResearchPdfUrl(String value) {
+        String path = extractPath(value);
+        return path.startsWith(PUBLIC_RESEARCH_PDF_PREFIX) || path.startsWith(LEGACY_RESEARCH_PDF_PREFIX);
+    }
+
+    private String extractPath(String value) {
+        if (value.startsWith("/")) {
+            return value;
+        }
+
+        try {
+            URI uri = new URI(value);
+            String path = uri.getPath();
+            if (!StringUtils.hasText(path)) {
+                throw new DomainException("PDF URL must point to MinIO storage endpoint.");
+            }
+            return path;
+        } catch (URISyntaxException ex) {
             throw new DomainException("PDF URL must point to MinIO storage endpoint.");
         }
     }

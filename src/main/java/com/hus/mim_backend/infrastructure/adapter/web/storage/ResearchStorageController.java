@@ -1,5 +1,6 @@
 package com.hus.mim_backend.infrastructure.adapter.web.storage;
 
+import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.infrastructure.adapter.storage.MinioStorageService;
 import com.hus.mim_backend.infrastructure.adapter.web.storage.dto.ResearchPdfUploadResponse;
 import com.hus.mim_backend.infrastructure.adapter.web.storage.dto.ResearchHeroImageUploadResponse;
@@ -38,10 +39,14 @@ public class ResearchStorageController {
 
     private final MinioStorageService storageService;
     private final ProfilePortalUseCase profilePortalUseCase;
+    private final ResearchPortalRepository researchPortalRepository;
 
-    public ResearchStorageController(MinioStorageService storageService, ProfilePortalUseCase profilePortalUseCase) {
+    public ResearchStorageController(MinioStorageService storageService,
+            ProfilePortalUseCase profilePortalUseCase,
+            ResearchPortalRepository researchPortalRepository) {
         this.storageService = storageService;
         this.profilePortalUseCase = profilePortalUseCase;
+        this.researchPortalRepository = researchPortalRepository;
     }
 
     @PostMapping(path = ApiEndpoints.STORAGE + ApiEndpoints.RESEARCH_PDFS,
@@ -100,6 +105,10 @@ public class ResearchStorageController {
 
     @GetMapping(path = ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.RESEARCH_PDFS + "/{objectKey:.+}")
     public ResponseEntity<InputStreamResource> getResearchPdf(@PathVariable String objectKey) {
+        if (!researchPortalRepository.existsApprovedPaperByPdfObjectKey(objectKey)) {
+            return ResponseEntity.notFound().build();
+        }
+
         Optional<MinioStorageService.StoredObject> objectOpt = storageService.readResearchPdf(objectKey);
         if (objectOpt.isEmpty()) {
             return ResponseEntity.notFound().build();

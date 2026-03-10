@@ -77,7 +77,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
-                        .requestMatchers("/api/v1/profile/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/profile/me", "/api/v1/profile/me/dashboard").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/profile/me/student", "/api/v1/profile/me/company",
+                                "/api/v1/profile/me/lecturer").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/profile/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/posts/me").authenticated()
                         .requestMatchers("/api/v1/posts/applications/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/posts/*/apply").authenticated()

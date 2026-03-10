@@ -9,6 +9,8 @@ import com.hus.mim_backend.application.profile.dto.UpdateStudentProfileRequest;
 public interface ProfilePortalUseCase {
     ProfileMeResponse getMyProfile(String email);
 
+    ProfileMeResponse getProfileByUserId(String userId);
+
     ProfileDashboardResponse getMyDashboard(String email);
 
     ProfileMeResponse updateStudentProfile(String email, UpdateStudentProfileRequest request);

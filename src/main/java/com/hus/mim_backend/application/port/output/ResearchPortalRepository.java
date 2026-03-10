@@ -30,6 +30,8 @@ public interface ResearchPortalRepository {
 
     Optional<String> findActiveResearchCategoryName(String researchAreaName);
 
+    boolean existsApprovedPaperByPdfObjectKey(String objectKey);
+
     UUID createPaperWithMainAuthor(UUID userId,
                                    boolean lecturerAuthor,
                                    String title,

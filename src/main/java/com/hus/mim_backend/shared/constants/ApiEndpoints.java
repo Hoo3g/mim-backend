@@ -63,6 +63,7 @@ public class ApiEndpoints {
     public static final String PROFILE_ME_STUDENT = "/me/student";
     public static final String PROFILE_ME_COMPANY = "/me/company";
     public static final String PROFILE_ME_LECTURER = "/me/lecturer";
+    public static final String PROFILE_BY_USER = "/{userId}";
 
     // Storage Endpoints
     public static final String STORAGE = API_V1 + "/storage";

@@ -36,6 +36,25 @@ public class ProfilePortalService implements ProfilePortalUseCase {
     }
 
     @Override
+    public ProfileMeResponse getProfileByUserId(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            throw new DomainException("User id is required");
+        }
+
+        UUID parsedUserId;
+        try {
+            parsedUserId = UUID.fromString(userId.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new DomainException("User id is invalid");
+        }
+
+        ProfileMeResponse profile = repository.findProfileByUserId(parsedUserId)
+                .orElseThrow(() -> new DomainException("Profile not found"));
+        profile.setRole(normalizeRole(profile.getRole()));
+        return profile;
+    }
+
+    @Override
     public ProfileDashboardResponse getMyDashboard(String email) {
         ProfileMeResponse profile = resolveProfile(email);
         UUID userId = profile.getUserId();

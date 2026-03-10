@@ -22,7 +22,7 @@ import java.util.UUID;
 
 @Component
 public class JdbcProfilePortalRepository implements ProfilePortalRepository {
-    private static final String SELECT_PROFILE_BY_EMAIL_SQL = """
+    private static final String SELECT_PROFILE_BASE_SQL = """
             SELECT u.id,
                    u.email,
                    u.avatar_url,
@@ -69,7 +69,16 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
             LEFT JOIN students s ON s.id = u.id
             LEFT JOIN companies c ON c.id = u.id
             LEFT JOIN lecturers l ON l.id = u.id
+            """;
+
+    private static final String SELECT_PROFILE_BY_EMAIL_SQL = """
+            %s
             WHERE u.email = ?
+            """;
+
+    private static final String SELECT_PROFILE_BY_USER_ID_SQL = """
+            %s
+            WHERE u.id = ?
             """;
 
     private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
@@ -307,53 +316,12 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
 
     @Override
     public Optional<ProfileMeResponse> findProfileByEmail(String email) {
-        List<ProfileMeResponse> rows = jdbcTemplate.query(SELECT_PROFILE_BY_EMAIL_SQL, (rs, rowNum) -> {
-            ProfileMeResponse response = new ProfileMeResponse();
-            response.setUserId(rs.getObject("id", UUID.class));
-            response.setEmail(rs.getString("email"));
-            response.setAvatarUrl(rs.getString("avatar_url"));
-            response.setAccountStatus(rs.getString("account_status"));
-            response.setRole(rs.getString("primary_role"));
+        return querySingleProfile(SELECT_PROFILE_BY_EMAIL_SQL.formatted(SELECT_PROFILE_BASE_SQL), email);
+    }
 
-            ProfileMeResponse.StudentProfile student = new ProfileMeResponse.StudentProfile();
-            student.setFirstName(rs.getString("student_first_name"));
-            student.setLastName(rs.getString("student_last_name"));
-            student.setUniversity(rs.getString("student_university"));
-            student.setMajor(rs.getString("student_major"));
-            student.setBio(rs.getString("student_bio"));
-            student.setCvUrl(rs.getString("student_cv_url"));
-            student.setStudentType(rs.getString("student_type"));
-            student.setStudentCode(rs.getString("student_code"));
-            student.setAchievements(rs.getString("achievements"));
-            student.setCareerGoal(rs.getString("career_goal"));
-            student.setDesiredPosition(rs.getString("desired_position"));
-            response.setStudent(student);
-
-            ProfileMeResponse.CompanyProfile company = new ProfileMeResponse.CompanyProfile();
-            company.setName(rs.getString("company_name"));
-            company.setIndustry(rs.getString("company_industry"));
-            company.setWebsite(rs.getString("company_website"));
-            company.setLocation(rs.getString("company_location"));
-            company.setDescription(rs.getString("company_description"));
-            company.setLogoUrl(rs.getString("company_logo_url"));
-            response.setCompany(company);
-
-            ProfileMeResponse.LecturerProfile lecturer = new ProfileMeResponse.LecturerProfile();
-            lecturer.setFirstName(rs.getString("lecturer_first_name"));
-            lecturer.setLastName(rs.getString("lecturer_last_name"));
-            lecturer.setTitle(rs.getString("lecturer_title"));
-            lecturer.setAcademicRank(rs.getString("lecturer_academic_rank"));
-            lecturer.setBio(rs.getString("lecturer_bio"));
-            lecturer.setAvatarUrl(rs.getString("lecturer_avatar_url"));
-            lecturer.setResearchInterests(toStringList(rs.getArray("research_interests")));
-            response.setLecturer(lecturer);
-            return response;
-        }, email);
-
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rows.getFirst());
+    @Override
+    public Optional<ProfileMeResponse> findProfileByUserId(UUID userId) {
+        return querySingleProfile(SELECT_PROFILE_BY_USER_ID_SQL.formatted(SELECT_PROFILE_BASE_SQL), userId);
     }
 
     @Override
@@ -590,5 +558,55 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
             // return empty list
         }
         return new ArrayList<>();
+    }
+
+    private Optional<ProfileMeResponse> querySingleProfile(String sql, Object parameter) {
+        List<ProfileMeResponse> rows = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            ProfileMeResponse response = new ProfileMeResponse();
+            response.setUserId(rs.getObject("id", UUID.class));
+            response.setEmail(rs.getString("email"));
+            response.setAvatarUrl(rs.getString("avatar_url"));
+            response.setAccountStatus(rs.getString("account_status"));
+            response.setRole(rs.getString("primary_role"));
+
+            ProfileMeResponse.StudentProfile student = new ProfileMeResponse.StudentProfile();
+            student.setFirstName(rs.getString("student_first_name"));
+            student.setLastName(rs.getString("student_last_name"));
+            student.setUniversity(rs.getString("student_university"));
+            student.setMajor(rs.getString("student_major"));
+            student.setBio(rs.getString("student_bio"));
+            student.setCvUrl(rs.getString("student_cv_url"));
+            student.setStudentType(rs.getString("student_type"));
+            student.setStudentCode(rs.getString("student_code"));
+            student.setAchievements(rs.getString("achievements"));
+            student.setCareerGoal(rs.getString("career_goal"));
+            student.setDesiredPosition(rs.getString("desired_position"));
+            response.setStudent(student);
+
+            ProfileMeResponse.CompanyProfile company = new ProfileMeResponse.CompanyProfile();
+            company.setName(rs.getString("company_name"));
+            company.setIndustry(rs.getString("company_industry"));
+            company.setWebsite(rs.getString("company_website"));
+            company.setLocation(rs.getString("company_location"));
+            company.setDescription(rs.getString("company_description"));
+            company.setLogoUrl(rs.getString("company_logo_url"));
+            response.setCompany(company);
+
+            ProfileMeResponse.LecturerProfile lecturer = new ProfileMeResponse.LecturerProfile();
+            lecturer.setFirstName(rs.getString("lecturer_first_name"));
+            lecturer.setLastName(rs.getString("lecturer_last_name"));
+            lecturer.setTitle(rs.getString("lecturer_title"));
+            lecturer.setAcademicRank(rs.getString("lecturer_academic_rank"));
+            lecturer.setBio(rs.getString("lecturer_bio"));
+            lecturer.setAvatarUrl(rs.getString("lecturer_avatar_url"));
+            lecturer.setResearchInterests(toStringList(rs.getArray("research_interests")));
+            response.setLecturer(lecturer);
+            return response;
+        }, parameter);
+
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(rows.getFirst());
     }
 }

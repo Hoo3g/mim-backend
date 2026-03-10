@@ -12,6 +12,8 @@ import java.util.UUID;
 public interface ProfilePortalRepository {
     Optional<ProfileMeResponse> findProfileByEmail(String email);
 
+    Optional<ProfileMeResponse> findProfileByUserId(UUID userId);
+
     Optional<UUID> findUserIdByEmail(String email);
 
     Optional<String> findPrimaryRole(UUID userId);

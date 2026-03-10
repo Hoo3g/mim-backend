@@ -12,6 +12,7 @@ import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,6 +26,12 @@ public class ProfileController {
 
     public ProfileController(ProfilePortalUseCase profilePortalUseCase) {
         this.profilePortalUseCase = profilePortalUseCase;
+    }
+
+    @GetMapping(ApiEndpoints.PROFILE_BY_USER)
+    public ResponseEntity<ApiResponse<ProfileMeResponse>> getProfileByUserId(@PathVariable String userId) {
+        ProfileMeResponse data = profilePortalUseCase.getProfileByUserId(userId);
+        return ResponseEntity.ok(ApiResponse.success(data, "Get public profile successfully"));
     }
 
     @GetMapping(ApiEndpoints.PROFILE_ME)

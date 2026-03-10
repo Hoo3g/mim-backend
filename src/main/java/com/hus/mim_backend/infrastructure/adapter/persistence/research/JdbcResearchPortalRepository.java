@@ -108,6 +108,21 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             LIMIT 1
             """;
 
+    private static final String EXISTS_APPROVED_PAPER_BY_PDF_OBJECT_KEY_SQL = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM research_papers
+                WHERE COALESCE(approval_status, 'PENDING') = 'APPROVED'
+                  AND (
+                      pdf_url = ?
+                      OR pdf_url = '/api/public/storage/research-pdfs/' || ?
+                      OR pdf_url = '/api/v1/storage/research-pdfs/' || ?
+                      OR pdf_url LIKE '%/api/public/storage/research-pdfs/' || ?
+                      OR pdf_url LIKE '%/api/v1/storage/research-pdfs/' || ?
+                  )
+            )
+            """;
+
     private static final String INSERT_PAPER_SQL = """
             INSERT INTO research_papers (
                 id, title, abstract, pdf_url, publication_year,
@@ -254,6 +269,19 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             return Optional.empty();
         }
         return Optional.of(rows.getFirst());
+    }
+
+    @Override
+    public boolean existsApprovedPaperByPdfObjectKey(String objectKey) {
+        Boolean result = jdbcTemplate.queryForObject(
+                EXISTS_APPROVED_PAPER_BY_PDF_OBJECT_KEY_SQL,
+                Boolean.class,
+                objectKey,
+                objectKey,
+                objectKey,
+                objectKey,
+                objectKey);
+        return Boolean.TRUE.equals(result);
     }
 
     @Override
