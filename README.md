@@ -14,3 +14,10 @@
 * Dừng docker: docker compose down -v
 * Xóa folder /data trong /docker
 * Chạy lại docker
+
+## Chạy local/prod
+* Local: chạy bằng nút Run vào hàm `main` trong IDE.
+* Local mặc định dùng profile `dev` từ `src/main/resources/application.properties` (`spring.profiles.active=dev`).
+* Deploy dùng profile `prod` bằng biến môi trường `SPRING_PROFILES_ACTIVE=prod`.
+* Cấu hình local nằm trong `src/main/resources/application-dev.properties`.
+* Cấu hình deploy nằm trong `src/main/resources/application-prod.properties`.
