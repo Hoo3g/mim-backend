@@ -37,10 +37,27 @@ WHERE ur.user_id = rr.user_id
 
 WITH role_ids AS (
     SELECT
-        MAX(CASE WHEN UPPER(name) = 'STUDENT' THEN id END) AS student_role_id,
-        MAX(CASE WHEN UPPER(name) = 'COMPANY' THEN id END) AS company_role_id,
-        MAX(CASE WHEN UPPER(name) = 'LECTURER' THEN id END) AS lecturer_role_id
-    FROM roles
+        (
+            SELECT id
+            FROM roles
+            WHERE UPPER(name) = 'STUDENT'
+            ORDER BY id
+            LIMIT 1
+        ) AS student_role_id,
+        (
+            SELECT id
+            FROM roles
+            WHERE UPPER(name) = 'COMPANY'
+            ORDER BY id
+            LIMIT 1
+        ) AS company_role_id,
+        (
+            SELECT id
+            FROM roles
+            WHERE UPPER(name) = 'LECTURER'
+            ORDER BY id
+            LIMIT 1
+        ) AS lecturer_role_id
 ),
 candidate_roles AS (
     SELECT
