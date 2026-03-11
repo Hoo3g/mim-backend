@@ -94,6 +94,17 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             SELECT id FROM users WHERE email = ?
             """;
 
+    private static final String SELECT_ADMIN_EMAILS_SQL = """
+            SELECT DISTINCT u.email
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.id
+            JOIN roles r ON r.id = ur.role_id
+            WHERE UPPER(r.name) = 'ADMIN'
+              AND u.email IS NOT NULL
+              AND TRIM(u.email) <> ''
+            ORDER BY u.email
+            """;
+
     private final JdbcTemplate jdbcTemplate;
 
     public JdbcAdminModerationRepository(JdbcTemplate jdbcTemplate) {
@@ -137,6 +148,11 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             return Optional.empty();
         }
         return Optional.of(rows.getFirst());
+    }
+
+    @Override
+    public List<String> findAdminEmails() {
+        return jdbcTemplate.queryForList(SELECT_ADMIN_EMAILS_SQL, String.class);
     }
 
     @Override

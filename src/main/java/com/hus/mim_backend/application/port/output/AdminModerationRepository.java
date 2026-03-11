@@ -17,6 +17,8 @@ public interface AdminModerationRepository {
 
     Optional<UUID> findUserIdByEmail(String email);
 
+    List<String> findAdminEmails();
+
     int updatePostModeration(UUID postId, String approvalStatus, UUID moderatorId, String moderationComment);
 
     int updatePaperModeration(UUID paperId, String approvalStatus, UUID moderatorId, String moderationComment);

@@ -16,6 +16,7 @@ import com.hus.mim_backend.application.moderation.usecase.ModerationUseCase;
 import com.hus.mim_backend.application.news.service.NewsServiceImpl;
 import com.hus.mim_backend.application.news.usecase.ManageNewsUseCase;
 import com.hus.mim_backend.application.port.output.AdminModerationRepository;
+import com.hus.mim_backend.application.port.output.AdminActivityNotificationPort;
 import com.hus.mim_backend.application.port.output.ApplicationRepository;
 import com.hus.mim_backend.application.port.output.ApplicationPortalRepository;
 import com.hus.mim_backend.application.port.output.CompanyRepository;
@@ -234,9 +235,10 @@ public class BeanConfig {
     }
 
     @Bean
-    @ConditionalOnBean(AdminModerationRepository.class)
-    public AdminModerationServiceImpl adminModerationService(AdminModerationRepository adminModerationRepository) {
-        return new AdminModerationServiceImpl(adminModerationRepository);
+    @ConditionalOnBean({ AdminModerationRepository.class, AdminActivityNotificationPort.class })
+    public AdminModerationServiceImpl adminModerationService(AdminModerationRepository adminModerationRepository,
+            AdminActivityNotificationPort adminActivityNotificationPort) {
+        return new AdminModerationServiceImpl(adminModerationRepository, adminActivityNotificationPort);
     }
 
     @Bean

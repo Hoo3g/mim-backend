@@ -21,3 +21,15 @@
 * Deploy dùng profile `prod` bằng biến môi trường `SPRING_PROFILES_ACTIVE=prod`.
 * Cấu hình local nằm trong `src/main/resources/application-dev.properties`.
 * Cấu hình deploy nằm trong `src/main/resources/application-prod.properties`.
+
+## Ví dụ notification khi user xử lý hoạt động cần quyền admin
+* Đã thêm ví dụ cho luồng moderation admin (`POST`/`PAPER`): sau khi `APPROVE/REJECT` thành công, hệ thống gửi email cho:
+  * toàn bộ tài khoản có role `ADMIN`
+  * user vừa thực hiện action (kể cả user được admin ủy quyền quyền xử lý)
+* Bật/tắt qua biến:
+  * `APP_NOTIFICATION_ADMIN_ACTIVITY_EMAIL_ENABLED=true|false`
+* SMTP cần cấu hình:
+  * `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`
+* Tuỳ chọn:
+  * `APP_NOTIFICATION_ADMIN_ACTIVITY_EMAIL_FROM`
+  * `APP_NOTIFICATION_ADMIN_ACTIVITY_EMAIL_SUBJECT_PREFIX`

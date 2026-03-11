@@ -4,22 +4,32 @@ import com.hus.mim_backend.application.moderation.dto.AdminModerationActionReque
 import com.hus.mim_backend.application.moderation.dto.ModerationPaperResponse;
 import com.hus.mim_backend.application.moderation.dto.ModerationPostResponse;
 import com.hus.mim_backend.application.moderation.usecase.AdminModerationUseCase;
+import com.hus.mim_backend.application.port.output.AdminActivityNotificationPort;
 import com.hus.mim_backend.application.port.output.AdminModerationRepository;
 import com.hus.mim_backend.domain.shared.DomainException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Application service for admin moderation.
  */
 public class AdminModerationServiceImpl implements AdminModerationUseCase {
-    private final AdminModerationRepository repository;
+    private static final Logger log = LoggerFactory.getLogger(AdminModerationServiceImpl.class);
 
-    public AdminModerationServiceImpl(AdminModerationRepository repository) {
+    private final AdminModerationRepository repository;
+    private final AdminActivityNotificationPort notificationPort;
+
+    public AdminModerationServiceImpl(AdminModerationRepository repository,
+            AdminActivityNotificationPort notificationPort) {
         this.repository = repository;
+        this.notificationPort = notificationPort;
     }
 
     @Override
@@ -46,6 +56,7 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
         }
 
         repository.insertModerationLog(moderatorId, "POST", postId, action.toAuditAction(), comment);
+        notifyDelegatedModerationHandled(moderatorEmail, "POST", postId, action, comment);
         return true;
     }
 
@@ -61,7 +72,40 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
         }
 
         repository.insertModerationLog(moderatorId, "PAPER", paperId, action.toAuditAction(), comment);
+        notifyDelegatedModerationHandled(moderatorEmail, "PAPER", paperId, action, comment);
         return true;
+    }
+
+    private void notifyDelegatedModerationHandled(String moderatorEmail,
+            String targetType,
+            UUID targetId,
+            ModerationAction action,
+            String comment) {
+        Set<String> recipients = new LinkedHashSet<>();
+        for (String adminEmail : repository.findAdminEmails()) {
+            if (StringUtils.hasText(adminEmail)) {
+                recipients.add(adminEmail.trim());
+            }
+        }
+        if (StringUtils.hasText(moderatorEmail)) {
+            recipients.add(moderatorEmail.trim());
+        }
+
+        if (recipients.isEmpty()) {
+            return;
+        }
+
+        try {
+            notificationPort.notifyDelegatedActivity(
+                    recipients,
+                    moderatorEmail,
+                    targetType,
+                    targetId,
+                    action.toAuditAction(),
+                    comment);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to send delegated admin activity notification for {} {}", targetType, targetId, ex);
+        }
     }
 
     private String normalizeApprovalStatus(String status) {
