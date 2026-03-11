@@ -35,7 +35,7 @@ public class UserJpaAdapter implements UserRepository {
 
     @Override
     public Optional<User> findByEmail(Email email) {
-        return jpaRepository.findByEmail(email.getValue()).map(UserEntity::toDomain);
+        return jpaRepository.findByEmail(email.value()).map(UserEntity::toDomain);
     }
 
     @Override
@@ -53,7 +53,7 @@ public class UserJpaAdapter implements UserRepository {
 
     @Override
     public boolean existsByEmail(Email email) {
-        return jpaRepository.existsByEmail(email.getValue());
+        return jpaRepository.existsByEmail(email.value());
     }
 
     @Override

@@ -1,25 +1,15 @@
 package com.hus.mim_backend.application.rbac.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * Request DTO for granting/revoking a role on a user.
  */
+@Setter
+@Getter
 public class UpdateUserRoleRequest {
     private String action;
     private String role;
 
-    public String getAction() {
-        return action;
-    }
-
-    public void setAction(String action) {
-        this.action = action;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
 }

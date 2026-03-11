@@ -45,11 +45,8 @@ public class AdminNewsController {
     @GetMapping(ApiEndpoints.NEWS_BY_ID)
     public ResponseEntity<ApiResponse<NewsResponse>> getAdminNewsDetail(@PathVariable UUID newsId) {
         Optional<NewsResponse> news = manageNewsUseCase.getAdminNewsDetails(newsId);
-        if (news.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("News not found", "NEWS_NOT_FOUND"));
-        }
-        return ResponseEntity.ok(ApiResponse.success(news.get(), "Get admin news detail successfully"));
+        return news.map(newsResponse -> ResponseEntity.ok(ApiResponse.success(newsResponse, "Get admin news detail successfully"))).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("News not found", "NEWS_NOT_FOUND")));
     }
 
     @PostMapping
@@ -63,11 +60,8 @@ public class AdminNewsController {
             @PathVariable UUID newsId,
             @RequestBody UpdateNewsRequest request) {
         Optional<NewsResponse> updated = manageNewsUseCase.updateNews(newsId, request);
-        if (updated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("News not found", "NEWS_NOT_FOUND"));
-        }
-        return ResponseEntity.ok(ApiResponse.success(updated.get(), "Update news successfully"));
+        return updated.map(newsResponse -> ResponseEntity.ok(ApiResponse.success(newsResponse, "Update news successfully"))).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("News not found", "NEWS_NOT_FOUND")));
     }
 
     @DeleteMapping(ApiEndpoints.NEWS_BY_ID)

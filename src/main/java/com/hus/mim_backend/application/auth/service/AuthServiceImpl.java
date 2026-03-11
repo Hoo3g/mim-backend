@@ -232,7 +232,7 @@ public class AuthServiceImpl
 
     private boolean isStudentAccount(User user) {
         return user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(role -> "STUDENT".equalsIgnoreCase(role));
+                .anyMatch("STUDENT"::equalsIgnoreCase);
     }
 
     private String validateStudentCode(String studentCode, boolean required) {

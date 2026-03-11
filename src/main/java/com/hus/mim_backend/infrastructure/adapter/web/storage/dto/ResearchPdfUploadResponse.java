@@ -1,8 +1,13 @@
 package com.hus.mim_backend.infrastructure.adapter.web.storage.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * Upload response for research PDF storage.
  */
+@Setter
+@Getter
 public class ResearchPdfUploadResponse {
     private String objectKey;
     private String fileUrl;
@@ -15,20 +20,5 @@ public class ResearchPdfUploadResponse {
         this.fileUrl = fileUrl;
     }
 
-    public String getObjectKey() {
-        return objectKey;
-    }
-
-    public void setObjectKey(String objectKey) {
-        this.objectKey = objectKey;
-    }
-
-    public String getFileUrl() {
-        return fileUrl;
-    }
-
-    public void setFileUrl(String fileUrl) {
-        this.fileUrl = fileUrl;
-    }
 }
 

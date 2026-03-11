@@ -95,7 +95,7 @@ public class ApplicationPortalService implements ApplicationPortalUseCase {
         }
 
         return repository.findStudentDefaultCv(applicantId)
-                .map((value) -> value == null ? null : value.trim())
+                .map(String::trim)
                 .filter((value) -> !value.isBlank())
                 .orElseThrow(() -> new DomainException("No default CV found. Please upload CV in profile first"));
     }

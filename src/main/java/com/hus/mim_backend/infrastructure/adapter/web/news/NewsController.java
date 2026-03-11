@@ -36,10 +36,7 @@ public class NewsController {
     @GetMapping(ApiEndpoints.NEWS_BY_ID)
     public ResponseEntity<ApiResponse<NewsResponse>> getPublicNewsDetail(@PathVariable UUID newsId) {
         Optional<NewsResponse> news = manageNewsUseCase.getPublicNewsDetails(newsId);
-        if (news.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("News not found", "NEWS_NOT_FOUND"));
-        }
-        return ResponseEntity.ok(ApiResponse.success(news.get(), "Get news detail successfully"));
+        return news.map(newsResponse -> ResponseEntity.ok(ApiResponse.success(newsResponse, "Get news detail successfully"))).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("News not found", "NEWS_NOT_FOUND")));
     }
 }

@@ -64,11 +64,8 @@ public class AdminResearchCategoryController {
             @RequestBody UpdateResearchCategoryRequest request) {
         try {
             Optional<ResearchCategoryResponse> updated = manageResearchCategoryUseCase.updateCategory(categoryId, request);
-            if (updated.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("Research category not found", "CATEGORY_NOT_FOUND"));
-            }
-            return ResponseEntity.ok(ApiResponse.success(updated.get(), "Update research category successfully"));
+            return updated.map(researchCategoryResponse -> ResponseEntity.ok(ApiResponse.success(researchCategoryResponse, "Update research category successfully"))).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Research category not found", "CATEGORY_NOT_FOUND")));
         } catch (DomainException ex) {
             if (isDuplicateCategoryError(ex)) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)

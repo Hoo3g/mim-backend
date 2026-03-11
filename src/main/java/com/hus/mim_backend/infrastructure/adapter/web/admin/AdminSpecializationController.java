@@ -64,11 +64,8 @@ public class AdminSpecializationController {
             @RequestBody UpdateResearchCategoryRequest request) {
         try {
             Optional<ResearchCategoryResponse> updated = manageSpecializationUseCase.updateSpecialization(categoryId, request);
-            if (updated.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("Specialization not found", "SPECIALIZATION_NOT_FOUND"));
-            }
-            return ResponseEntity.ok(ApiResponse.success(updated.get(), "Update specialization successfully"));
+            return updated.map(researchCategoryResponse -> ResponseEntity.ok(ApiResponse.success(researchCategoryResponse, "Update specialization successfully"))).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Specialization not found", "SPECIALIZATION_NOT_FOUND")));
         } catch (DomainException ex) {
             if (isDuplicateError(ex)) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)

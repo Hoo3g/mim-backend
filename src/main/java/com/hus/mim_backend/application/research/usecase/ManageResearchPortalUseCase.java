@@ -2,6 +2,7 @@ package com.hus.mim_backend.application.research.usecase;
 
 import com.hus.mim_backend.application.research.dto.PaperResponse;
 import com.hus.mim_backend.application.research.dto.UpsertPaperRequest;
+import lombok.Getter;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,7 @@ public interface ManageResearchPortalUseCase {
         NOT_FOUND
     }
 
+    @Getter
     class UpdatePaperResult {
         private final UpdatePaperResultType type;
         private final PaperResponse paper;
@@ -50,12 +52,5 @@ public interface ManageResearchPortalUseCase {
             return new UpdatePaperResult(UpdatePaperResultType.NOT_FOUND, null);
         }
 
-        public UpdatePaperResultType getType() {
-            return type;
-        }
-
-        public PaperResponse getPaper() {
-            return paper;
-        }
     }
 }

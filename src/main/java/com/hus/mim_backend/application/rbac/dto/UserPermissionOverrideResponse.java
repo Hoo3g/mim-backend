@@ -1,25 +1,15 @@
 package com.hus.mim_backend.application.rbac.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * User-specific override response DTO.
  */
+@Setter
+@Getter
 public class UserPermissionOverrideResponse {
     private String permission;
     private String effect;
 
-    public String getPermission() {
-        return permission;
-    }
-
-    public void setPermission(String permission) {
-        this.permission = permission;
-    }
-
-    public String getEffect() {
-        return effect;
-    }
-
-    public void setEffect(String effect) {
-        this.effect = effect;
-    }
 }

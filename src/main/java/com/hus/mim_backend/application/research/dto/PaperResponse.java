@@ -1,11 +1,17 @@
 package com.hus.mim_backend.application.research.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Getter
+@Setter
 public class PaperResponse {
+
     private UUID id;
     private String title;
     private String paperAbstract;
@@ -20,14 +26,6 @@ public class PaperResponse {
     private List<PaperAuthorResponse> authors = new ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
 
     public String getTitle() {
         return title;
@@ -133,42 +131,13 @@ public class PaperResponse {
         this.updatedAt = updatedAt;
     }
 
+    @Setter
+    @Getter
     public static class PaperAuthorResponse {
         private String studentId;
         private String name;
         private boolean isMainAuthor;
         private int authorOrder;
 
-        public String getStudentId() {
-            return studentId;
-        }
-
-        public void setStudentId(String studentId) {
-            this.studentId = studentId;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public boolean isMainAuthor() {
-            return isMainAuthor;
-        }
-
-        public void setMainAuthor(boolean mainAuthor) {
-            isMainAuthor = mainAuthor;
-        }
-
-        public int getAuthorOrder() {
-            return authorOrder;
-        }
-
-        public void setAuthorOrder(int authorOrder) {
-            this.authorOrder = authorOrder;
-        }
     }
 }

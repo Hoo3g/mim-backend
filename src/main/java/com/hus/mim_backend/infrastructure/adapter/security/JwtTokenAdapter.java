@@ -42,11 +42,11 @@ public class JwtTokenAdapter implements TokenProvider {
     public String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", user.getRoles());
-        claims.put("email", user.getEmail().getValue());
+        claims.put("email", user.getEmail().value());
 
         return Jwts.builder()
                 .claims(claims)
-                .subject(user.getEmail().getValue())
+                .subject(user.getEmail().value())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
                 .signWith(getSigningKey())
@@ -56,7 +56,7 @@ public class JwtTokenAdapter implements TokenProvider {
     @Override
     public String generateRefreshToken(User user) {
         return Jwts.builder()
-                .subject(user.getEmail().getValue())
+                .subject(user.getEmail().value())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
                 .signWith(getSigningKey())

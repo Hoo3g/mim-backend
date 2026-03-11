@@ -26,7 +26,7 @@ public class UserResponse {
     public static UserResponse fromDomain(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId().toString());
-        response.setEmail(user.getEmail().getValue());
+        response.setEmail(user.getEmail().value());
         response.setStatus(user.getStatus().name());
         response.setAvatarUrl(user.getAvatarUrl());
         response.setRoles(user.getRoles());
