@@ -1,7 +1,18 @@
 package com.hus.mim_backend.application.profile.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.util.UUID;
 
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class StudentProfileResponse {
     private UUID id;
     private String firstName;
@@ -11,6 +22,4 @@ public class StudentProfileResponse {
     private String bio;
     private String cvUrl;
     private String studentType;
-
-    // TODO: Implement getters/setters/builder
 }

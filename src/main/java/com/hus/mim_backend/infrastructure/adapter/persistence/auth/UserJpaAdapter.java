@@ -1,6 +1,7 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.auth;
 
 import com.hus.mim_backend.application.port.output.UserRepository;
+import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.Email;
 import com.hus.mim_backend.domain.auth.model.User;
 import org.springframework.stereotype.Component;
@@ -68,8 +69,20 @@ public class UserJpaAdapter implements UserRepository {
 
     @Override
     public List<User> findByAccountStatus(String status) {
-        // TODO: Implement via JpaRepository query
-        return List.of();
+        if (status == null || status.isBlank()) {
+            return List.of();
+        }
+
+        AccountStatus accountStatus;
+        try {
+            accountStatus = AccountStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return List.of();
+        }
+
+        return jpaRepository.findByStatus(accountStatus).stream()
+                .map(UserEntity::toDomain)
+                .toList();
     }
 
     @Override

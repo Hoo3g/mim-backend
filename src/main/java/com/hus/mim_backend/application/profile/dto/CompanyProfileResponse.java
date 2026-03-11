@@ -1,7 +1,12 @@
 package com.hus.mim_backend.application.profile.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 
+@Getter
+@Setter
 public class CompanyProfileResponse {
     private UUID id;
     private String name;
@@ -9,6 +14,4 @@ public class CompanyProfileResponse {
     private String website;
     private String location;
     private String description;
-
-    // TODO: Implement getters/setters
 }

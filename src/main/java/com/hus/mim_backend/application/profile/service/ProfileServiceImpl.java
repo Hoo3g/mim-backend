@@ -7,5 +7,5 @@ package com.hus.mim_backend.application.profile.service;
  */
 @Deprecated
 class ProfileServiceImpl {
-    // Intentionally left blank — replaced by three separate service classes.
+    // Legacy placeholder for backward references during refactor window.
 }
