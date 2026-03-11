@@ -7,6 +7,7 @@ import com.hus.mim_backend.application.rbac.model.UserPermissionOverride;
 import com.hus.mim_backend.application.rbac.model.UserRbacAssignment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.sql.Array;
@@ -226,6 +227,11 @@ public class JdbcRbacRepository implements RbacRepository {
               AND UPPER(r.name) = UPPER(?)
             """;
 
+    private static final String DELETE_ALL_USER_ROLES_SQL = """
+            DELETE FROM user_roles
+            WHERE user_id = ?
+            """;
+
     private static final String DELETE_USER_PERMISSION_OVERRIDE_SQL = """
             DELETE FROM user_permissions
             WHERE user_id = ? AND permission_id = ?
@@ -382,8 +388,15 @@ public class JdbcRbacRepository implements RbacRepository {
     }
 
     @Override
-    public void grantRole(UUID userId, String roleName) {
+    @Transactional
+    public void replaceUserRole(UUID userId, String roleName) {
+        jdbcTemplate.update(DELETE_ALL_USER_ROLES_SQL, userId);
         jdbcTemplate.update(INSERT_USER_ROLE_SQL, userId, roleName);
+    }
+
+    @Override
+    public void grantRole(UUID userId, String roleName) {
+        replaceUserRole(userId, roleName);
     }
 
     @Override

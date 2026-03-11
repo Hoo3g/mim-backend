@@ -29,7 +29,6 @@ import java.util.UUID;
  * Application service for RBAC use cases.
  */
 public class RbacServiceImpl implements ManageRbacUseCase {
-    private static final String ROLE_ADMIN = "ADMIN";
     private static final Set<String> DELEGABLE_PERMISSIONS = Set.of(
             RbacPermissions.ADMIN_DASHBOARD_VIEW,
             RbacPermissions.MODERATION_POSTS_VIEW,
@@ -142,15 +141,10 @@ public class RbacServiceImpl implements ManageRbacUseCase {
             throw new DomainException("Role not found: " + roleName);
         }
 
-        UserRbacAssignment before = rbacRepository.findUserAssignmentById(userId)
-                .orElseThrow(() -> new DomainException("User not found"));
-
         if (action == RoleAction.GRANT) {
-            rbacRepository.grantRole(userId, roleName);
+            rbacRepository.replaceUserRole(userId, roleName);
         } else {
-            UUID actorId = resolveActorId(actorEmail);
-            ensureCanRevokeRole(actorId, userId, roleName, before);
-            rbacRepository.revokeRole(userId, roleName);
+            throw new DomainException("REVOKE is not supported in single-role mode. Use GRANT to replace role.");
         }
 
         UserRbacAssignment after = rbacRepository.findUserAssignmentById(userId)
@@ -256,29 +250,6 @@ public class RbacServiceImpl implements ManageRbacUseCase {
             throw new DomainException("role is required");
         }
         return request.getRole().trim().toUpperCase(Locale.ROOT);
-    }
-
-    private UUID resolveActorId(String actorEmail) {
-        if (!StringUtils.hasText(actorEmail)) {
-            throw new DomainException("Authentication required");
-        }
-        return rbacRepository.findUserIdByEmail(actorEmail.trim())
-                .orElseThrow(() -> new DomainException("Authenticated user is not found"));
-    }
-
-    private void ensureCanRevokeRole(UUID actorId, UUID targetUserId, String roleName, UserRbacAssignment currentAssignment) {
-        if (ROLE_ADMIN.equals(roleName) && actorId.equals(targetUserId)) {
-            throw new DomainException("You cannot revoke your own ADMIN role");
-        }
-
-        List<String> currentRoles = currentAssignment.getRoles() == null ? List.of() : currentAssignment.getRoles();
-        boolean hasTargetRole = currentRoles.stream().anyMatch(role -> roleName.equalsIgnoreCase(role));
-        if (!hasTargetRole) {
-            return;
-        }
-        if (currentRoles.size() <= 1) {
-            throw new DomainException("User must keep at least one role");
-        }
     }
 
     private enum RoleAction {

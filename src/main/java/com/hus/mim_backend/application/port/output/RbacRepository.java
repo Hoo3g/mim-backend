@@ -38,6 +38,8 @@ public interface RbacRepository {
 
     boolean existsRole(String roleName);
 
+    void replaceUserRole(UUID userId, String roleName);
+
     void grantRole(UUID userId, String roleName);
 
     int revokeRole(UUID userId, String roleName);

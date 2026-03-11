@@ -8,11 +8,10 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -91,20 +90,32 @@ public class UserJpaAdapter implements UserRepository {
             return Set.of();
         }
 
-        List<RoleEntity> existingRoles = roleJpaRepository.findByNameIn(normalizedNames);
-        Map<String, RoleEntity> byName = existingRoles.stream()
-                .collect(Collectors.toMap(RoleEntity::getName, Function.identity(), (a, b) -> a));
+        String selectedRoleName = selectSingleRole(normalizedNames);
+        RoleEntity selectedRole = roleJpaRepository.findByName(selectedRoleName)
+                .orElseGet(() -> {
+                    RoleEntity newRole = new RoleEntity();
+                    newRole.setId(UUID.randomUUID());
+                    newRole.setName(selectedRoleName);
+                    newRole.setCreatedAt(LocalDateTime.now());
+                    return roleJpaRepository.save(newRole);
+                });
+        return Set.of(selectedRole);
+    }
 
-        Set<RoleEntity> resolved = new LinkedHashSet<>(existingRoles);
-        for (String roleName : normalizedNames) {
-            if (!byName.containsKey(roleName)) {
-                RoleEntity newRole = new RoleEntity();
-                newRole.setId(UUID.randomUUID());
-                newRole.setName(roleName);
-                newRole.setCreatedAt(LocalDateTime.now());
-                resolved.add(roleJpaRepository.save(newRole));
-            }
-        }
-        return resolved;
+    private String selectSingleRole(Set<String> roleNames) {
+        return roleNames.stream()
+                .min((left, right) -> Integer.compare(rolePriority(left), rolePriority(right)))
+                .orElse("STUDENT");
+    }
+
+    private int rolePriority(String roleName) {
+        String normalized = roleName == null ? "" : roleName.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "ADMIN" -> 1;
+            case "LECTURER" -> 2;
+            case "COMPANY" -> 3;
+            case "STUDENT" -> 4;
+            default -> 99;
+        };
     }
 }
