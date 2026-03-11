@@ -2,6 +2,7 @@ package com.hus.mim_backend.infrastructure.adapter.persistence.post;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hus.mim_backend.application.port.output.PostPortalRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.PublicResearchPaperLinkResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
@@ -20,7 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class JdbcPostPortalRepository {
+public class JdbcPostPortalRepository implements PostPortalRepository {
     private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
             SELECT id FROM users WHERE email = ?
             """;
@@ -215,6 +216,7 @@ public class JdbcPostPortalRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    @Override
     public Optional<UUID> findUserIdByEmail(String email) {
         List<UUID> rows = jdbcTemplate.query(
                 SELECT_USER_ID_BY_EMAIL_SQL,
@@ -226,6 +228,7 @@ public class JdbcPostPortalRepository {
         return Optional.of(rows.getFirst());
     }
 
+    @Override
     public Optional<String> findPrimaryRole(UUID userId) {
         List<String> rows = jdbcTemplate.query(
                 SELECT_PRIMARY_ROLE_SQL,
@@ -237,6 +240,7 @@ public class JdbcPostPortalRepository {
         return Optional.ofNullable(rows.getFirst());
     }
 
+    @Override
     public Optional<PublicPostResponse> findPostByIdForViewer(UUID postId, UUID viewerId) {
         List<PublicPostResponse> rows;
         if (viewerId == null) {
@@ -261,6 +265,7 @@ public class JdbcPostPortalRepository {
         return Optional.of(item);
     }
 
+    @Override
     public Optional<PublicPostResponse> findPostByIdForAuthor(UUID postId, UUID authorId) {
         List<PublicPostResponse> rows = jdbcTemplate.query(
                 SELECT_POST_BY_ID_FOR_AUTHOR_SQL,
@@ -276,6 +281,7 @@ public class JdbcPostPortalRepository {
         return Optional.of(item);
     }
 
+    @Override
     public List<PublicPostResponse> findPostsByAuthor(UUID authorId) {
         return jdbcTemplate.query(
                 SELECT_POSTS_BY_AUTHOR_SQL,
@@ -288,6 +294,7 @@ public class JdbcPostPortalRepository {
     }
 
     @Transactional
+    @Override
     public UUID createPost(UUID authorId, UpsertRecruitmentPostRequest request, String displayInfoJson, String tagsCsv) {
         UUID postId = jdbcTemplate.queryForObject(
                 INSERT_POST_SQL,
@@ -314,6 +321,7 @@ public class JdbcPostPortalRepository {
     }
 
     @Transactional
+    @Override
     public boolean updatePostByAuthor(
             UUID postId,
             UUID authorId,
@@ -345,6 +353,7 @@ public class JdbcPostPortalRepository {
     }
 
     @Transactional
+    @Override
     public void replaceLinkedResearchPapers(UUID postId, List<UUID> paperIds) {
         jdbcTemplate.update(DELETE_LINKED_RESEARCH_SQL, postId);
         if (paperIds == null || paperIds.isEmpty()) {

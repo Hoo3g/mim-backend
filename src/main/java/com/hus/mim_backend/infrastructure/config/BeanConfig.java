@@ -24,6 +24,7 @@ import com.hus.mim_backend.application.port.output.LecturerRepository;
 import com.hus.mim_backend.application.port.output.ModerationLogRepository;
 import com.hus.mim_backend.application.port.output.NewsRepository;
 import com.hus.mim_backend.application.port.output.PasswordEncoder;
+import com.hus.mim_backend.application.port.output.PostPortalRepository;
 import com.hus.mim_backend.application.port.output.PostRepository;
 import com.hus.mim_backend.application.port.output.ProfilePortalRepository;
 import com.hus.mim_backend.application.port.output.PublicPostRepository;
@@ -40,11 +41,13 @@ import com.hus.mim_backend.application.port.output.StudentRepository;
 import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.service.PostServiceImpl;
+import com.hus.mim_backend.application.post.service.PostPortalService;
 import com.hus.mim_backend.application.post.service.PublicPostQueryServiceImpl;
 import com.hus.mim_backend.application.post.service.ApplicationPortalService;
 import com.hus.mim_backend.application.post.usecase.ApplicationPortalUseCase;
 import com.hus.mim_backend.application.post.usecase.ApplyToPostUseCase;
 import com.hus.mim_backend.application.post.usecase.ManagePostUseCase;
+import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
 import com.hus.mim_backend.application.profile.service.CompanyProfileService;
 import com.hus.mim_backend.application.profile.service.LecturerProfileService;
@@ -184,6 +187,18 @@ public class BeanConfig {
     @ConditionalOnBean(PublicPostQueryServiceImpl.class)
     public QueryPublicPostsUseCase queryPublicPostsUseCase(PublicPostQueryServiceImpl publicPostQueryService) {
         return publicPostQueryService;
+    }
+
+    @Bean
+    @ConditionalOnBean(PostPortalRepository.class)
+    public PostPortalService postPortalService(PostPortalRepository postPortalRepository) {
+        return new PostPortalService(postPortalRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(PostPortalService.class)
+    public PostPortalUseCase postPortalUseCase(PostPortalService postPortalService) {
+        return postPortalService;
     }
 
     @Bean

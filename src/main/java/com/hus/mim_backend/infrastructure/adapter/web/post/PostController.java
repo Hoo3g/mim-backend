@@ -2,7 +2,7 @@ package com.hus.mim_backend.infrastructure.adapter.web.post;
 
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
-import com.hus.mim_backend.application.post.service.PostPortalService;
+import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
 import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.shared.api.ApiResponse;
@@ -29,11 +29,11 @@ import java.util.UUID;
 @RequestMapping(ApiEndpoints.POSTS)
 public class PostController {
     private final QueryPublicPostsUseCase queryPublicPostsUseCase;
-    private final PostPortalService postPortalService;
+    private final PostPortalUseCase postPortalUseCase;
 
-    public PostController(QueryPublicPostsUseCase queryPublicPostsUseCase, PostPortalService postPortalService) {
+    public PostController(QueryPublicPostsUseCase queryPublicPostsUseCase, PostPortalUseCase postPortalUseCase) {
         this.queryPublicPostsUseCase = queryPublicPostsUseCase;
-        this.postPortalService = postPortalService;
+        this.postPortalUseCase = postPortalUseCase;
     }
 
     @GetMapping
@@ -48,7 +48,7 @@ public class PostController {
             Authentication authentication) {
         String viewerEmail = resolveOptionalAuthenticatedEmail(authentication);
 
-        return postPortalService.getPostByIdForViewer(postId, viewerEmail)
+        return postPortalUseCase.getPostByIdForViewer(postId, viewerEmail)
                 .map(post -> ResponseEntity.ok(ApiResponse.success(post, "Get post successfully")))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("Post not found", "POST_NOT_FOUND")));
@@ -57,7 +57,7 @@ public class PostController {
     @GetMapping(ApiEndpoints.POSTS_ME)
     public ResponseEntity<ApiResponse<List<PublicPostResponse>>> getMyPosts(Authentication authentication) {
         String email = resolveAuthenticatedEmail(authentication);
-        List<PublicPostResponse> posts = postPortalService.getMyPosts(email);
+        List<PublicPostResponse> posts = postPortalUseCase.getMyPosts(email);
         return ResponseEntity.ok(ApiResponse.success(posts, "Get my posts successfully"));
     }
 
@@ -66,7 +66,7 @@ public class PostController {
             @RequestBody UpsertRecruitmentPostRequest request,
             Authentication authentication) {
         String email = resolveAuthenticatedEmail(authentication);
-        PublicPostResponse response = postPortalService.createPost(email, request);
+        PublicPostResponse response = postPortalUseCase.createPost(email, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Create post successfully"));
     }
@@ -77,7 +77,7 @@ public class PostController {
             @RequestBody UpsertRecruitmentPostRequest request,
             Authentication authentication) {
         String email = resolveAuthenticatedEmail(authentication);
-        PublicPostResponse response = postPortalService.updatePost(email, postId, request);
+        PublicPostResponse response = postPortalUseCase.updatePost(email, postId, request);
         return ResponseEntity.ok(ApiResponse.success(response, "Update post successfully"));
     }
 

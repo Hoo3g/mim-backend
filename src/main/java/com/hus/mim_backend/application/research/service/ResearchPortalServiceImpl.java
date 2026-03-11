@@ -53,6 +53,14 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     @Override
+    public boolean canAccessResearchPdf(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            return false;
+        }
+        return repository.existsApprovedPaperByPdfObjectKey(objectKey.trim());
+    }
+
+    @Override
     public PaperResponse createPaper(String currentUserEmail, UpsertPaperRequest request) {
         validateUpsertRequest(request);
         validatePdfUrlForCreate(request.getPdfUrl());

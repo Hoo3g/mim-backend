@@ -1,10 +1,10 @@
 package com.hus.mim_backend.infrastructure.adapter.web.storage;
 
-import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.infrastructure.adapter.storage.MinioStorageService;
 import com.hus.mim_backend.infrastructure.adapter.web.storage.dto.ResearchPdfUploadResponse;
 import com.hus.mim_backend.infrastructure.adapter.web.storage.dto.ResearchHeroImageUploadResponse;
 import com.hus.mim_backend.application.profile.usecase.ProfilePortalUseCase;
+import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import com.hus.mim_backend.shared.constants.RbacPermissions;
@@ -39,14 +39,14 @@ public class ResearchStorageController {
 
     private final MinioStorageService storageService;
     private final ProfilePortalUseCase profilePortalUseCase;
-    private final ResearchPortalRepository researchPortalRepository;
+    private final ManageResearchPortalUseCase manageResearchPortalUseCase;
 
     public ResearchStorageController(MinioStorageService storageService,
             ProfilePortalUseCase profilePortalUseCase,
-            ResearchPortalRepository researchPortalRepository) {
+            ManageResearchPortalUseCase manageResearchPortalUseCase) {
         this.storageService = storageService;
         this.profilePortalUseCase = profilePortalUseCase;
-        this.researchPortalRepository = researchPortalRepository;
+        this.manageResearchPortalUseCase = manageResearchPortalUseCase;
     }
 
     @PostMapping(path = ApiEndpoints.STORAGE + ApiEndpoints.RESEARCH_PDFS,
@@ -105,7 +105,7 @@ public class ResearchStorageController {
 
     @GetMapping(path = ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.RESEARCH_PDFS + "/{objectKey:.+}")
     public ResponseEntity<InputStreamResource> getResearchPdf(@PathVariable String objectKey) {
-        if (!researchPortalRepository.existsApprovedPaperByPdfObjectKey(objectKey)) {
+        if (!manageResearchPortalUseCase.canAccessResearchPdf(objectKey)) {
             return ResponseEntity.notFound().build();
         }
 

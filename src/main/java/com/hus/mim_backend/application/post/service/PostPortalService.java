@@ -2,11 +2,11 @@ package com.hus.mim_backend.application.post.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hus.mim_backend.application.port.output.PostPortalRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
+import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
-import com.hus.mim_backend.infrastructure.adapter.persistence.post.JdbcPostPortalRepository;
-import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -18,8 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-@Service
-public class PostPortalService {
+public class PostPortalService implements PostPortalUseCase {
     private static final Set<String> ALLOWED_POST_TYPES = Set.of(
             "STUDENT_SEEKING_JOB",
             "STUDENT_SEEKING_INTERNSHIP",
@@ -29,23 +28,26 @@ public class PostPortalService {
     private static final Set<String> ALLOWED_JOB_TYPES = Set.of("FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP");
     private static final Set<String> ALLOWED_POST_STATUSES = Set.of("OPEN", "CLOSED", "DRAFT");
 
-    private final JdbcPostPortalRepository repository;
+    private final PostPortalRepository repository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public PostPortalService(JdbcPostPortalRepository repository) {
+    public PostPortalService(PostPortalRepository repository) {
         this.repository = repository;
     }
 
+    @Override
     public List<PublicPostResponse> getMyPosts(String email) {
         UUID userId = resolveUserId(email);
         return repository.findPostsByAuthor(userId);
     }
 
+    @Override
     public Optional<PublicPostResponse> getMyPostById(String email, UUID postId) {
         UUID userId = resolveUserId(email);
         return repository.findPostByIdForAuthor(postId, userId);
     }
 
+    @Override
     public Optional<PublicPostResponse> getPostByIdForViewer(UUID postId, String viewerEmail) {
         UUID viewerId = null;
         if (StringUtils.hasText(viewerEmail)) {
@@ -54,6 +56,7 @@ public class PostPortalService {
         return repository.findPostByIdForViewer(postId, viewerId);
     }
 
+    @Override
     public PublicPostResponse createPost(String email, UpsertRecruitmentPostRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -72,6 +75,7 @@ public class PostPortalService {
                 .orElseThrow(() -> new DomainException("Unable to load created post"));
     }
 
+    @Override
     public PublicPostResponse updatePost(String email, UUID postId, UpsertRecruitmentPostRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -268,4 +272,3 @@ public class PostPortalService {
         return normalized.isEmpty() ? null : normalized;
     }
 }
-
