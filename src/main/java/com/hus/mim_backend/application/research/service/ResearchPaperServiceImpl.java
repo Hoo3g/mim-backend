@@ -169,6 +169,8 @@ public class ResearchPaperServiceImpl implements ManageResearchPaperUseCase {
         response.setResearchArea(paper.getResearchArea());
         response.setCategory(paper.getCategory() == null ? null : paper.getCategory().name());
         response.setViewCount(paper.getViewCount());
+        response.setDownloadCount(paper.getDownloadCount());
+        response.setBookmarkCount(0);
         response.setApprovalStatus(paper.getApprovalStatus() == null ? null : paper.getApprovalStatus().name());
         response.setModerationComment(paper.getModerationComment());
         response.setCreatedAt(paper.getCreatedAt());

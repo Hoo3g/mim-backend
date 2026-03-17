@@ -22,6 +22,10 @@ public interface ManageResearchPortalUseCase {
 
     Optional<PaperResponse> getApprovedPaperById(UUID paperId);
 
+    boolean trackApprovedPaperView(UUID paperId);
+
+    boolean trackApprovedPaperDownload(UUID paperId);
+
     boolean canAccessResearchPdf(String objectKey);
 
     PaperResponse createPaper(String currentUserEmail, UpsertPaperRequest request);

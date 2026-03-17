@@ -85,6 +85,26 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
+                    key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)")
+    })
+    public boolean trackApprovedPaperView(UUID paperId) {
+        return repository.incrementApprovedPaperViewCount(paperId) > 0;
+    }
+
+    @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
+                    key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)")
+    })
+    public boolean trackApprovedPaperDownload(UUID paperId) {
+        return repository.incrementApprovedPaperDownloadCount(paperId) > 0;
+    }
+
+    @Override
     public boolean canAccessResearchPdf(String objectKey) {
         if (!StringUtils.hasText(objectKey)) {
             return false;

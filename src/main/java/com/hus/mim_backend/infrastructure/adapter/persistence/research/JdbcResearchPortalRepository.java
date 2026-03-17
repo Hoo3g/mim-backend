@@ -42,6 +42,12 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                    COALESCE(rp.research_area, 'Chưa phân loại') AS research_area,
                    rp.category,
                    COALESCE(rp.view_count, 0) AS view_count,
+                   COALESCE(rp.download_count, 0) AS download_count,
+                   (
+                       SELECT COUNT(*)
+                       FROM saved_research_papers srp
+                       WHERE srp.paper_id = rp.id
+                   ) AS bookmark_count,
                    COALESCE(rp.approval_status, 'PENDING') AS approval_status,
                    rp.moderation_comment,
                    rp.created_at,
@@ -192,6 +198,20 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             WHERE id = ?
             """;
 
+    private static final String INCREMENT_VIEW_COUNT_SQL = """
+            UPDATE research_papers
+            SET view_count = COALESCE(view_count, 0) + 1
+            WHERE id = ?
+              AND COALESCE(approval_status, 'PENDING') = 'APPROVED'
+            """;
+
+    private static final String INCREMENT_DOWNLOAD_COUNT_SQL = """
+            UPDATE research_papers
+            SET download_count = COALESCE(download_count, 0) + 1
+            WHERE id = ?
+              AND COALESCE(approval_status, 'PENDING') = 'APPROVED'
+            """;
+
     private static final RowMapper<PaperResponse> PAPER_ROW_MAPPER = (rs, rowNum) -> {
         PaperResponse response = new PaperResponse();
         response.setId(rs.getObject("id", UUID.class));
@@ -203,6 +223,8 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         response.setResearchArea(rs.getString("research_area"));
         response.setCategory(rs.getString("category"));
         response.setViewCount(rs.getInt("view_count"));
+        response.setDownloadCount(rs.getInt("download_count"));
+        response.setBookmarkCount(rs.getInt("bookmark_count"));
         response.setApprovalStatus(rs.getString("approval_status"));
         response.setModerationComment(rs.getString("moderation_comment"));
         response.setCreatedAt(rs.getTimestamp("created_at").toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
@@ -295,6 +317,18 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             return Optional.empty();
         }
         return Optional.of(rows.getFirst());
+    }
+
+    @Override
+    @Transactional
+    public int incrementApprovedPaperViewCount(UUID paperId) {
+        return jdbcTemplate.update(INCREMENT_VIEW_COUNT_SQL, paperId);
+    }
+
+    @Override
+    @Transactional
+    public int incrementApprovedPaperDownloadCount(UUID paperId) {
+        return jdbcTemplate.update(INCREMENT_DOWNLOAD_COUNT_SQL, paperId);
     }
 
     @Override

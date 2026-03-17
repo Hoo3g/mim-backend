@@ -21,6 +21,8 @@ public class PaperResponse {
     private String researchArea;
     private String category;
     private int viewCount;
+    private int downloadCount;
+    private int bookmarkCount;
     private String approvalStatus;
     private String moderationComment;
     private List<PaperAuthorResponse> authors = new ArrayList<>();
@@ -65,6 +67,22 @@ public class PaperResponse {
 
     public void setViewCount(int viewCount) {
         this.viewCount = viewCount;
+    }
+
+    public int getDownloadCount() {
+        return downloadCount;
+    }
+
+    public void setDownloadCount(int downloadCount) {
+        this.downloadCount = downloadCount;
+    }
+
+    public int getBookmarkCount() {
+        return bookmarkCount;
+    }
+
+    public void setBookmarkCount(int bookmarkCount) {
+        this.bookmarkCount = bookmarkCount;
     }
 
     public String getApprovalStatus() {

@@ -23,6 +23,10 @@ public interface ResearchPortalRepository {
 
     Optional<PaperResponse> findPaperById(UUID paperId);
 
+    int incrementApprovedPaperViewCount(UUID paperId);
+
+    int incrementApprovedPaperDownloadCount(UUID paperId);
+
     List<PaperResponse.PaperAuthorResponse> findAuthorsByPaperId(UUID paperId);
 
     Map<UUID, List<PaperResponse.PaperAuthorResponse>> findAuthorsByPaperIds(List<UUID> paperIds);

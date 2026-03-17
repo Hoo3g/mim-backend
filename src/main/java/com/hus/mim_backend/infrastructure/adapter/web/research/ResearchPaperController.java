@@ -63,6 +63,24 @@ public class ResearchPaperController {
                         .body(ApiResponse.error("Research paper not found", "PAPER_NOT_FOUND")));
     }
 
+    @PostMapping(ApiEndpoints.RESEARCH_TRACK_VIEW)
+    public ResponseEntity<ApiResponse<Void>> trackPaperView(@PathVariable UUID paperId) {
+        if (!manageResearchPortalUseCase.trackApprovedPaperView(paperId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Research paper not found", "PAPER_NOT_FOUND"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, "View count updated"));
+    }
+
+    @PostMapping(ApiEndpoints.RESEARCH_TRACK_DOWNLOAD)
+    public ResponseEntity<ApiResponse<Void>> trackPaperDownload(@PathVariable UUID paperId) {
+        if (!manageResearchPortalUseCase.trackApprovedPaperDownload(paperId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Research paper not found", "PAPER_NOT_FOUND"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, "Download count updated"));
+    }
+
     @PostMapping
     @PreAuthorize(AUTH_RESEARCH_CREATE)
     public ResponseEntity<ApiResponse<PaperResponse>> createPaper(
