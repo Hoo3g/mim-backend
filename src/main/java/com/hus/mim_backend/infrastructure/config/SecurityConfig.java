@@ -4,6 +4,7 @@ import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.infrastructure.adapter.security.JwtAuthenticationFilter;
 import com.hus.mim_backend.shared.api.ApiResponse;
+import com.hus.mim_backend.shared.constants.RbacPermissions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
@@ -78,6 +79,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/metrics", "/actuator/metrics/**",
+                                "/actuator/caches", "/actuator/caches/**",
+                                "/actuator/prometheus")
+                        .hasAuthority("PERM_" + RbacPermissions.ADMIN_DASHBOARD_VIEW)
                         .requestMatchers(HttpMethod.GET, "/api/v1/profile/me", "/api/v1/profile/me/dashboard").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/profile/me/student", "/api/v1/profile/me/company",
                                 "/api/v1/profile/me/lecturer").authenticated()

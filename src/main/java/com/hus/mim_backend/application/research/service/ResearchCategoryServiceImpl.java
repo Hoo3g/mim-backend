@@ -7,6 +7,10 @@ import com.hus.mim_backend.application.research.dto.UpdateResearchCategoryReques
 import com.hus.mim_backend.application.research.usecase.ManageResearchCategoryUseCase;
 import com.hus.mim_backend.application.research.usecase.QueryResearchCategoryUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
+import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -26,16 +30,26 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            sync = true)
     public List<ResearchCategoryResponse> getActiveCategories() {
         return repository.findActiveCategories();
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            sync = true)
     public List<ResearchCategoryResponse> getAllCategories() {
         return repository.findAllCategories();
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL, allEntries = true)
+    })
     public ResearchCategoryResponse createCategory(CreateResearchCategoryRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -55,6 +69,10 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL, allEntries = true)
+    })
     public Optional<ResearchCategoryResponse> updateCategory(UUID categoryId, UpdateResearchCategoryRequest request) {
         if (categoryId == null) {
             throw new DomainException("categoryId is required");
@@ -85,6 +103,10 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL, allEntries = true)
+    })
     public boolean deactivateCategory(UUID categoryId) {
         if (categoryId == null) {
             throw new DomainException("categoryId is required");

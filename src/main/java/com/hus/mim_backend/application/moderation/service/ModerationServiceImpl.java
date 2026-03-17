@@ -11,6 +11,9 @@ import com.hus.mim_backend.domain.moderation.model.ModerationLog;
 import com.hus.mim_backend.domain.post.model.Post;
 import com.hus.mim_backend.domain.research.model.ResearchPaper;
 import com.hus.mim_backend.domain.shared.DomainException;
+import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 import java.util.Locale;
 import java.util.UUID;
@@ -36,6 +39,12 @@ public class ModerationServiceImpl implements ModerationUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS, allEntries = true)
+    })
     public void approveContent(UUID moderatorId, ModerationRequest request) {
         if (moderatorId == null) {
             throw new DomainException("moderatorId is required");
@@ -69,6 +78,12 @@ public class ModerationServiceImpl implements ModerationUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS, allEntries = true)
+    })
     public void rejectContent(UUID moderatorId, ModerationRequest request) {
         if (moderatorId == null) {
             throw new DomainException("moderatorId is required");

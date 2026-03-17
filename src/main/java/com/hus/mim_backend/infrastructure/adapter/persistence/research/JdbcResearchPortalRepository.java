@@ -4,11 +4,17 @@ import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,53 +23,57 @@ import java.util.UUID;
  */
 @Component
 public class JdbcResearchPortalRepository implements ResearchPortalRepository {
+    private static final String AUTHOR_NAME_SQL = """
+            COALESCE(
+                NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
+                NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
+                SPLIT_PART(COALESCE(us.email, ul.email, ''), '@', 1),
+                'Unknown'
+            )
+            """;
+
     private static final String SELECT_PAPERS_BASE_SQL = """
-            SELECT id,
-                   title,
-                   abstract AS abstract_text,
-                   pdf_url,
-                   publication_year,
-                   journal_conference,
-                   COALESCE(research_area, 'Chưa phân loại') AS research_area,
-                   category,
-                   COALESCE(view_count, 0) AS view_count,
-                   COALESCE(approval_status, 'PENDING') AS approval_status,
-                   moderation_comment,
-                   created_at,
-                   updated_at
-            FROM research_papers
+            SELECT rp.id,
+                   rp.title,
+                   rp.abstract AS abstract_text,
+                   rp.pdf_url,
+                   rp.publication_year,
+                   rp.journal_conference,
+                   COALESCE(rp.research_area, 'Chưa phân loại') AS research_area,
+                   rp.category,
+                   COALESCE(rp.view_count, 0) AS view_count,
+                   COALESCE(rp.approval_status, 'PENDING') AS approval_status,
+                   rp.moderation_comment,
+                   rp.created_at,
+                   rp.updated_at
+            FROM research_papers rp
             """;
 
     private static final String SELECT_PAPER_BY_ID_PUBLIC_SQL = SELECT_PAPERS_BASE_SQL + """
-            WHERE id = ? AND COALESCE(approval_status, 'PENDING') = 'APPROVED'
+            WHERE rp.id = ? AND COALESCE(rp.approval_status, 'PENDING') = 'APPROVED'
             """;
 
     private static final String SELECT_PAPER_BY_ID_INTERNAL_SQL = SELECT_PAPERS_BASE_SQL + """
-            WHERE id = ?
+            WHERE rp.id = ?
             """;
 
     private static final String SELECT_MY_PAPERS_SQL = SELECT_PAPERS_BASE_SQL + """
-            WHERE id IN (
+            WHERE rp.id IN (
                 SELECT DISTINCT paper_id
                 FROM paper_authors
                 WHERE student_id = ? OR lecturer_id = ?
             )
-            ORDER BY created_at DESC
+            ORDER BY rp.created_at DESC
             """;
 
     private static final String SELECT_ALL_PAPERS_SQL = SELECT_PAPERS_BASE_SQL + """
-            WHERE COALESCE(approval_status, 'PENDING') = 'APPROVED'
-            ORDER BY created_at DESC
+            WHERE COALESCE(rp.approval_status, 'PENDING') = 'APPROVED'
+            ORDER BY rp.created_at DESC
             """;
 
     private static final String SELECT_AUTHORS_BY_PAPER_SQL = """
             SELECT COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
-                   COALESCE(
-                       NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
-                       NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
-                       SPLIT_PART(COALESCE(us.email, ul.email, ''), '@', 1),
-                       'Unknown'
-                   ) AS author_name,
+                   %s AS author_name,
                    pa.is_main_author,
                    COALESCE(pa.author_order, 1) AS author_order
             FROM paper_authors pa
@@ -73,7 +83,22 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             LEFT JOIN users ul ON ul.id = pa.lecturer_id
             WHERE pa.paper_id = ?
             ORDER BY pa.is_main_author DESC, pa.author_order ASC
-            """;
+            """.formatted(AUTHOR_NAME_SQL);
+
+    private static final String SELECT_AUTHORS_BY_PAPER_IDS_SQL = """
+            SELECT pa.paper_id,
+                   COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
+                   %s AS author_name,
+                   pa.is_main_author,
+                   COALESCE(pa.author_order, 1) AS author_order
+            FROM paper_authors pa
+            LEFT JOIN students s ON s.id = pa.student_id
+            LEFT JOIN users us ON us.id = pa.student_id
+            LEFT JOIN lecturers l ON l.id = pa.lecturer_id
+            LEFT JOIN users ul ON ul.id = pa.lecturer_id
+            WHERE pa.paper_id IN (:paperIds)
+            ORDER BY pa.paper_id, pa.is_main_author DESC, pa.author_order ASC
+            """.formatted(AUTHOR_NAME_SQL);
 
     private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
             SELECT id FROM users WHERE email = ?
@@ -195,14 +220,58 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     };
 
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
-    public JdbcResearchPortalRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcResearchPortalRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
     public List<PaperResponse> findAllApprovedPapers() {
         return jdbcTemplate.query(SELECT_ALL_PAPERS_SQL, PAPER_ROW_MAPPER);
+    }
+
+    @Override
+    public List<PaperResponse> findApprovedPapers(String normalizedKeyword,
+            String normalizedCategory,
+            List<String> normalizedResearchAreas) {
+        StringBuilder sql = new StringBuilder(SELECT_PAPERS_BASE_SQL)
+                .append("\nWHERE COALESCE(rp.approval_status, 'PENDING') = 'APPROVED'");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (StringUtils.hasText(normalizedCategory)) {
+            sql.append("\n  AND LOWER(COALESCE(rp.category, '')) = :category");
+            params.addValue("category", normalizedCategory);
+        }
+
+        if (normalizedResearchAreas != null && !normalizedResearchAreas.isEmpty()) {
+            sql.append("\n  AND ").append(normalizeSql("rp.research_area")).append(" IN (:researchAreas)");
+            params.addValue("researchAreas", normalizedResearchAreas);
+        }
+
+        if (StringUtils.hasText(normalizedKeyword)) {
+            params.addValue("keyword", "%" + normalizedKeyword + "%");
+            sql.append("\n  AND (")
+                    .append(normalizeSql("CONCAT_WS(' ', rp.title, rp.abstract, rp.research_area, rp.journal_conference)"))
+                    .append(" LIKE :keyword")
+                    .append("\n    OR EXISTS (")
+                    .append("\n        SELECT 1")
+                    .append("\n        FROM paper_authors pa")
+                    .append("\n        LEFT JOIN students s ON s.id = pa.student_id")
+                    .append("\n        LEFT JOIN users us ON us.id = pa.student_id")
+                    .append("\n        LEFT JOIN lecturers l ON l.id = pa.lecturer_id")
+                    .append("\n        LEFT JOIN users ul ON ul.id = pa.lecturer_id")
+                    .append("\n        WHERE pa.paper_id = rp.id")
+                    .append("\n          AND ")
+                    .append(normalizeSql(AUTHOR_NAME_SQL))
+                    .append(" LIKE :keyword")
+                    .append("\n    )")
+                    .append("\n  )");
+        }
+
+        sql.append("\nORDER BY rp.created_at DESC");
+        return namedParameterJdbcTemplate.query(sql.toString(), params, PAPER_ROW_MAPPER);
     }
 
     @Override
@@ -231,6 +300,26 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     @Override
     public List<PaperResponse.PaperAuthorResponse> findAuthorsByPaperId(UUID paperId) {
         return jdbcTemplate.query(SELECT_AUTHORS_BY_PAPER_SQL, PAPER_AUTHOR_ROW_MAPPER, paperId);
+    }
+
+    @Override
+    public Map<UUID, List<PaperResponse.PaperAuthorResponse>> findAuthorsByPaperIds(List<UUID> paperIds) {
+        if (paperIds == null || paperIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<PaperAuthorRow> rows = namedParameterJdbcTemplate.query(
+                SELECT_AUTHORS_BY_PAPER_IDS_SQL,
+                new MapSqlParameterSource("paperIds", paperIds),
+                (rs, rowNum) -> new PaperAuthorRow(
+                        rs.getObject("paper_id", UUID.class),
+                        PAPER_AUTHOR_ROW_MAPPER.mapRow(rs, rowNum)));
+
+        Map<UUID, List<PaperResponse.PaperAuthorResponse>> authorsByPaperId = new LinkedHashMap<>();
+        rows.forEach((row) -> authorsByPaperId
+                .computeIfAbsent(row.paperId(), ignored -> new ArrayList<>())
+                .add(row.author()));
+        return authorsByPaperId;
     }
 
     @Override
@@ -326,5 +415,12 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     @Override
     public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea) {
         return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperId);
+    }
+
+    private String normalizeSql(String expression) {
+        return "regexp_replace(unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
+    }
+
+    private record PaperAuthorRow(UUID paperId, PaperResponse.PaperAuthorResponse author) {
     }
 }

@@ -12,5 +12,9 @@ import java.util.UUID;
 public interface PublicPostRepository {
     List<PublicPostResponse> findAllApprovedPosts();
 
+    List<PublicPostResponse> findApprovedPosts(String normalizedKeyword,
+                                              String normalizedType,
+                                              List<String> specializationCandidates);
+
     Optional<PublicPostResponse> findApprovedPostById(UUID postId);
 }

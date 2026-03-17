@@ -52,6 +52,13 @@ public class PostController {
             Authentication authentication) {
         String viewerEmail = resolveOptionalAuthenticatedEmail(authentication);
 
+        if (!StringUtils.hasText(viewerEmail)) {
+            return queryPublicPostsUseCase.getPostById(postId)
+                    .map(post -> ResponseEntity.ok(ApiResponse.success(post, "Get post successfully")))
+                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(ApiResponse.error("Post not found", "POST_NOT_FOUND")));
+        }
+
         return postPortalUseCase.getPostByIdForViewer(postId, viewerEmail)
                 .map(post -> ResponseEntity.ok(ApiResponse.success(post, "Get post successfully")))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)

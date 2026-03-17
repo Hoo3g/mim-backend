@@ -3,6 +3,8 @@ package com.hus.mim_backend.application.post.service;
 import com.hus.mim_backend.application.port.output.PublicPostRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
+import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.util.StringUtils;
 
 import java.text.Normalizer;
@@ -32,78 +34,38 @@ public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_POSTS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            sync = true)
     public List<PublicPostResponse> getPosts() {
         return repository.findAllApprovedPosts();
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_POSTS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).queryKey(#keyword, #type, #specializations)",
+            sync = true)
     public List<PublicPostResponse> getPosts(String keyword, String type, List<String> specializations) {
         String normalizedKeyword = normalize(keyword);
         String normalizedType = normalize(type);
         List<String> normalizedSpecializations = normalizeDistinct(specializations);
 
-        return repository.findAllApprovedPosts().stream()
-                .filter((post) -> matchesType(post, normalizedType))
-                .filter((post) -> matchesSpecialization(post, normalizedSpecializations))
-                .filter((post) -> matchesKeyword(post, normalizedKeyword))
-                .toList();
+        return repository.findApprovedPosts(
+                normalizedKeyword,
+                normalizedType,
+                normalizedSpecializations.stream()
+                        .flatMap((specialization) -> buildSpecializationCandidates(specialization).stream())
+                        .distinct()
+                        .toList());
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_POST_DETAILS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#postId)",
+            unless = "#result == null || #result.isEmpty()",
+            sync = true)
     public Optional<PublicPostResponse> getPostById(UUID postId) {
         return repository.findApprovedPostById(postId);
-    }
-
-    private boolean matchesType(PublicPostResponse post, String normalizedType) {
-        if (!StringUtils.hasText(normalizedType)) {
-            return true;
-        }
-
-        String postType = normalize(post.getPostType());
-        if ("company".equals(normalizedType)) {
-            return postType.contains("company");
-        }
-        if ("student".equals(normalizedType)) {
-            return !postType.contains("company");
-        }
-        return true;
-    }
-
-    private boolean matchesSpecialization(PublicPostResponse post, List<String> normalizedSpecializations) {
-        if (normalizedSpecializations.isEmpty()) {
-            return true;
-        }
-
-        List<String> normalizedTags = (post.getTags() == null ? List.<String>of() : post.getTags()).stream()
-                .map(this::normalize)
-                .filter(StringUtils::hasText)
-                .toList();
-
-        if (normalizedTags.isEmpty()) {
-            return false;
-        }
-
-        return normalizedSpecializations.stream().anyMatch((specialization) -> {
-            List<String> candidates = buildSpecializationCandidates(specialization);
-            return normalizedTags.stream().anyMatch((tag) ->
-                    candidates.stream().anyMatch((candidate) ->
-                            tag.equals(candidate) || tag.contains(candidate) || candidate.contains(tag)));
-        });
-    }
-
-    private boolean matchesKeyword(PublicPostResponse post, String normalizedKeyword) {
-        if (!StringUtils.hasText(normalizedKeyword)) {
-            return true;
-        }
-
-        String haystack = normalize(String.join(" ",
-                safe(post.getTitle()),
-                safe(post.getDescription()),
-                safe(post.getAuthorName()),
-                safe(post.getRequirements()),
-                safe(post.getAchievements()),
-                safe(post.getBenefits())));
-        return haystack.contains(normalizedKeyword);
     }
 
     private List<String> buildSpecializationCandidates(String specialization) {
@@ -141,9 +103,5 @@ public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
                 .toLowerCase(Locale.ROOT)
                 .trim();
         return normalized.replaceAll("\\s+", " ");
-    }
-
-    private String safe(String value) {
-        return value == null ? "" : value;
     }
 }

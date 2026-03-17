@@ -7,6 +7,10 @@ import com.hus.mim_backend.application.research.dto.UpdateResearchCategoryReques
 import com.hus.mim_backend.application.research.usecase.ManageSpecializationUseCase;
 import com.hus.mim_backend.application.research.usecase.QuerySpecializationUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
+import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -26,16 +30,26 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            sync = true)
     public List<ResearchCategoryResponse> getActiveSpecializations() {
         return repository.findActiveSpecializations();
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.SPECIALIZATIONS_ALL,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            sync = true)
     public List<ResearchCategoryResponse> getAllSpecializations() {
         return repository.findAllSpecializations();
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.SPECIALIZATIONS_ALL, allEntries = true)
+    })
     public ResearchCategoryResponse createSpecialization(CreateResearchCategoryRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -54,6 +68,10 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.SPECIALIZATIONS_ALL, allEntries = true)
+    })
     public Optional<ResearchCategoryResponse> updateSpecialization(UUID specializationId, UpdateResearchCategoryRequest request) {
         if (specializationId == null) {
             throw new DomainException("specializationId is required");
@@ -84,6 +102,10 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.SPECIALIZATIONS_ALL, allEntries = true)
+    })
     public boolean deactivateSpecialization(UUID specializationId) {
         if (specializationId == null) {
             throw new DomainException("specializationId is required");

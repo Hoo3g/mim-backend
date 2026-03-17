@@ -5,6 +5,10 @@ import com.hus.mim_backend.application.research.dto.PaperResponse;
 import com.hus.mim_backend.application.research.dto.UpsertPaperRequest;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
+import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
@@ -13,6 +17,7 @@ import java.text.Normalizer;
 import java.time.Year;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -34,34 +39,45 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            sync = true)
     public List<PaperResponse> getAllApprovedPapers() {
         List<PaperResponse> papers = repository.findAllApprovedPapers();
-        papers.forEach(this::loadAuthors);
+        loadAuthors(papers);
         return papers;
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).queryKey(#keyword, #category, #researchAreas)",
+            sync = true)
     public List<PaperResponse> getAllApprovedPapers(String keyword, String category, List<String> researchAreas) {
         String normalizedKeyword = normalize(keyword);
         String normalizedCategory = normalize(category);
         List<String> normalizedResearchAreas = normalizeDistinct(researchAreas);
 
-        return getAllApprovedPapers().stream()
-                .filter((paper) -> matchesCategory(paper, normalizedCategory))
-                .filter((paper) -> matchesResearchArea(paper, normalizedResearchAreas))
-                .filter((paper) -> matchesKeyword(paper, normalizedKeyword))
-                .toList();
+        List<PaperResponse> papers = repository.findApprovedPapers(
+                normalizedKeyword,
+                normalizedCategory,
+                normalizedResearchAreas);
+        loadAuthors(papers);
+        return papers;
     }
 
     @Override
     public List<PaperResponse> getMyPapers(String currentUserEmail) {
         UUID userId = resolveCurrentUserId(currentUserEmail);
         List<PaperResponse> papers = repository.findMyPapers(userId);
-        papers.forEach(this::loadAuthors);
+        loadAuthors(papers);
         return papers;
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)",
+            unless = "#result == null || #result.isEmpty()",
+            sync = true)
     public Optional<PaperResponse> getApprovedPaperById(UUID paperId) {
         Optional<PaperResponse> paper = repository.findApprovedPaperById(paperId);
         paper.ifPresent(this::loadAuthors);
@@ -77,6 +93,12 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
+    })
     public PaperResponse createPaper(String currentUserEmail, UpsertPaperRequest request) {
         validateUpsertRequest(request);
         validatePdfUrlForCreate(request.getPdfUrl());
@@ -114,6 +136,12 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
+    })
     public UpdatePaperResult updatePaper(String currentUserEmail, UUID paperId, UpsertPaperRequest request) {
         validateUpsertRequest(request);
         validatePdfUrlIfProvided(request.getPdfUrl());
@@ -218,45 +246,24 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         paper.setAuthors(repository.findAuthorsByPaperId(paper.getId()));
     }
 
+    private void loadAuthors(List<PaperResponse> papers) {
+        if (papers == null || papers.isEmpty()) {
+            return;
+        }
+
+        List<UUID> paperIds = papers.stream()
+                .map(PaperResponse::getId)
+                .toList();
+        Map<UUID, List<PaperResponse.PaperAuthorResponse>> authorsByPaperId = repository.findAuthorsByPaperIds(paperIds);
+        papers.forEach((paper) -> paper.setAuthors(authorsByPaperId.getOrDefault(paper.getId(), List.of())));
+    }
+
     private String resolveActiveResearchArea(String researchArea) {
         if (!StringUtils.hasText(researchArea)) {
             throw new DomainException("researchArea is required");
         }
         return repository.findActiveResearchCategoryName(researchArea.trim())
                 .orElseThrow(() -> new DomainException("Research area is invalid or inactive"));
-    }
-
-    private boolean matchesCategory(PaperResponse paper, String normalizedCategory) {
-        if (!StringUtils.hasText(normalizedCategory)) {
-            return true;
-        }
-        return normalizedCategory.equals(normalize(paper.getCategory()));
-    }
-
-    private boolean matchesResearchArea(PaperResponse paper, List<String> normalizedResearchAreas) {
-        if (normalizedResearchAreas.isEmpty()) {
-            return true;
-        }
-        return normalizedResearchAreas.contains(normalize(paper.getResearchArea()));
-    }
-
-    private boolean matchesKeyword(PaperResponse paper, String normalizedKeyword) {
-        if (!StringUtils.hasText(normalizedKeyword)) {
-            return true;
-        }
-
-        String authorNames = paper.getAuthors().stream()
-                .map(PaperResponse.PaperAuthorResponse::getName)
-                .filter(StringUtils::hasText)
-                .collect(Collectors.joining(" "));
-
-        String haystack = normalize(String.join(" ",
-                safe(paper.getTitle()),
-                safe(paper.getAbstract()),
-                safe(paper.getResearchArea()),
-                safe(paper.getJournalConference()),
-                authorNames));
-        return haystack.contains(normalizedKeyword);
     }
 
     private List<String> normalizeDistinct(List<String> values) {
@@ -284,9 +291,5 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 .toLowerCase(Locale.ROOT)
                 .trim();
         return normalized.replaceAll("\\s+", " ");
-    }
-
-    private String safe(String value) {
-        return value == null ? "" : value;
     }
 }

@@ -7,6 +7,10 @@ import com.hus.mim_backend.application.news.usecase.ManageNewsUseCase;
 import com.hus.mim_backend.application.port.output.NewsRepository;
 import com.hus.mim_backend.domain.news.model.News;
 import com.hus.mim_backend.domain.shared.DomainException;
+import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -30,6 +34,10 @@ public class NewsServiceImpl implements ManageNewsUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_NEWS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_NEWS_DETAILS, allEntries = true)
+    })
     public NewsResponse createNews(UUID authorId, CreateNewsRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -51,6 +59,10 @@ public class NewsServiceImpl implements ManageNewsUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_NEWS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_NEWS_DETAILS, allEntries = true)
+    })
     public Optional<NewsResponse> updateNews(UUID newsId, UpdateNewsRequest request) {
         if (newsId == null) {
             throw new DomainException("newsId is required");
@@ -77,6 +89,9 @@ public class NewsServiceImpl implements ManageNewsUseCase {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_NEWS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            sync = true)
     public List<NewsResponse> getPublicNews() {
         return newsRepository.findPublishedOrderByPinnedAndCreatedAtDesc().stream()
                 .map(this::toResponse)
@@ -91,6 +106,10 @@ public class NewsServiceImpl implements ManageNewsUseCase {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_NEWS_DETAILS,
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#newsId)",
+            unless = "#result == null || #result.isEmpty()",
+            sync = true)
     public Optional<NewsResponse> getPublicNewsDetails(UUID newsId) {
         if (newsId == null) {
             throw new DomainException("newsId is required");
@@ -111,6 +130,10 @@ public class NewsServiceImpl implements ManageNewsUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_NEWS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_NEWS_DETAILS, allEntries = true)
+    })
     public boolean deleteNews(UUID newsId) {
         if (newsId == null) {
             throw new DomainException("newsId is required");

@@ -7,6 +7,9 @@ import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
 import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
+import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -57,6 +60,10 @@ public class PostPortalService implements PostPortalUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
+    })
     public PublicPostResponse createPost(String email, UpsertRecruitmentPostRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -76,6 +83,10 @@ public class PostPortalService implements PostPortalUseCase {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
+    })
     public PublicPostResponse updatePost(String email, UUID postId, UpsertRecruitmentPostRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
