@@ -12,5 +12,9 @@ import java.util.UUID;
 public interface QueryPublicPostsUseCase {
     List<PublicPostResponse> getPosts();
 
+    default List<PublicPostResponse> getPosts(String keyword, String type, List<String> specializations) {
+        return getPosts();
+    }
+
     Optional<PublicPostResponse> getPostById(UUID postId);
 }

@@ -14,6 +14,10 @@ import java.util.UUID;
 public interface ManageResearchPortalUseCase {
     List<PaperResponse> getAllApprovedPapers();
 
+    default List<PaperResponse> getAllApprovedPapers(String keyword, String category, List<String> researchAreas) {
+        return getAllApprovedPapers();
+    }
+
     List<PaperResponse> getMyPapers(String currentUserEmail);
 
     Optional<PaperResponse> getApprovedPaperById(UUID paperId);

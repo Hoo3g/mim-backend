@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -39,8 +40,11 @@ public class ResearchPaperController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PaperResponse>>> getAllPapers() {
-        List<PaperResponse> papers = manageResearchPortalUseCase.getAllApprovedPapers();
+    public ResponseEntity<ApiResponse<List<PaperResponse>>> getAllPapers(
+            @RequestParam(name = "q", required = false) String keyword,
+            @RequestParam(name = "type", required = false) String category,
+            @RequestParam(name = "specialization", required = false) List<String> researchAreas) {
+        List<PaperResponse> papers = manageResearchPortalUseCase.getAllApprovedPapers(keyword, category, researchAreas);
         return ResponseEntity.ok(ApiResponse.success(papers, "Get papers successfully"));
     }
 

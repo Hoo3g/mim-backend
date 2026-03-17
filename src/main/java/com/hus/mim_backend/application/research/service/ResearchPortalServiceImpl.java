@@ -9,10 +9,13 @@ import org.springframework.util.StringUtils;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.Normalizer;
 import java.time.Year;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Application service for research portal APIs.
@@ -35,6 +38,19 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         List<PaperResponse> papers = repository.findAllApprovedPapers();
         papers.forEach(this::loadAuthors);
         return papers;
+    }
+
+    @Override
+    public List<PaperResponse> getAllApprovedPapers(String keyword, String category, List<String> researchAreas) {
+        String normalizedKeyword = normalize(keyword);
+        String normalizedCategory = normalize(category);
+        List<String> normalizedResearchAreas = normalizeDistinct(researchAreas);
+
+        return getAllApprovedPapers().stream()
+                .filter((paper) -> matchesCategory(paper, normalizedCategory))
+                .filter((paper) -> matchesResearchArea(paper, normalizedResearchAreas))
+                .filter((paper) -> matchesKeyword(paper, normalizedKeyword))
+                .toList();
     }
 
     @Override
@@ -208,5 +224,69 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         }
         return repository.findActiveResearchCategoryName(researchArea.trim())
                 .orElseThrow(() -> new DomainException("Research area is invalid or inactive"));
+    }
+
+    private boolean matchesCategory(PaperResponse paper, String normalizedCategory) {
+        if (!StringUtils.hasText(normalizedCategory)) {
+            return true;
+        }
+        return normalizedCategory.equals(normalize(paper.getCategory()));
+    }
+
+    private boolean matchesResearchArea(PaperResponse paper, List<String> normalizedResearchAreas) {
+        if (normalizedResearchAreas.isEmpty()) {
+            return true;
+        }
+        return normalizedResearchAreas.contains(normalize(paper.getResearchArea()));
+    }
+
+    private boolean matchesKeyword(PaperResponse paper, String normalizedKeyword) {
+        if (!StringUtils.hasText(normalizedKeyword)) {
+            return true;
+        }
+
+        String authorNames = paper.getAuthors().stream()
+                .map(PaperResponse.PaperAuthorResponse::getName)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.joining(" "));
+
+        String haystack = normalize(String.join(" ",
+                safe(paper.getTitle()),
+                safe(paper.getAbstract()),
+                safe(paper.getResearchArea()),
+                safe(paper.getJournalConference()),
+                authorNames));
+        return haystack.contains(normalizedKeyword);
+    }
+
+    private List<String> normalizeDistinct(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+
+        return values.stream()
+                .filter(StringUtils::hasText)
+                .flatMap((value) -> List.of(value.split(",")).stream())
+                .map(String::trim)
+                .map(this::normalize)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+    }
+
+    private String normalize(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+
+        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .trim();
+        return normalized.replaceAll("\\s+", " ");
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 }

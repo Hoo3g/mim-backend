@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,8 +38,11 @@ public class PostController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PublicPostResponse>>> getPosts() {
-        List<PublicPostResponse> posts = queryPublicPostsUseCase.getPosts();
+    public ResponseEntity<ApiResponse<List<PublicPostResponse>>> getPosts(
+            @RequestParam(name = "q", required = false) String keyword,
+            @RequestParam(name = "type", required = false) String type,
+            @RequestParam(name = "specialization", required = false) List<String> specializations) {
+        List<PublicPostResponse> posts = queryPublicPostsUseCase.getPosts(keyword, type, specializations);
         return ResponseEntity.ok(ApiResponse.success(posts, "Get posts successfully"));
     }
 
