@@ -2,11 +2,13 @@ package com.hus.mim_backend.infrastructure.adapter.notification;
 
 import com.hus.mim_backend.application.port.output.EmailVerificationNotificationPort;
 import com.hus.mim_backend.infrastructure.config.EmailVerificationProperties;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -46,16 +48,22 @@ public class SmtpEmailVerificationNotificationAdapter implements EmailVerificati
         }
 
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
             if (StringUtils.hasText(properties.getFrom())) {
-                message.setFrom(properties.getFrom().trim());
+                String from = properties.getFrom().trim();
+                if (StringUtils.hasText(properties.getSenderName())) {
+                    helper.setFrom(new InternetAddress(from, properties.getSenderName().trim()));
+                } else {
+                    helper.setFrom(from);
+                }
             }
-            message.setTo(recipientEmail.trim());
-            message.setSubject(resolveSubject());
-            message.setText(buildBody(verificationLink));
+            helper.setTo(recipientEmail.trim());
+            helper.setSubject(resolveSubject());
+            helper.setText(buildBody(verificationLink), false);
             mailSender.send(message);
             log.info("Verification email sent to {}", recipientEmail.trim());
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             log.warn("Unable to send verification email to {}", recipientEmail.trim(), ex);
         }
     }

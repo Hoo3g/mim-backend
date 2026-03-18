@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class EmailVerificationProperties {
     private boolean enabled = false;
     private String from;
+    private String senderName = "MIM HUS";
     private String subjectPrefix = "[MIM Verify Email]";
     private String frontendBaseUrl = "http://localhost:4200";
     private long tokenTtlMinutes = 1440;
