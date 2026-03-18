@@ -1,9 +1,12 @@
 package com.hus.mim_backend.application.research.service;
 
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
 import com.hus.mim_backend.application.research.dto.UpsertPaperRequest;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
+import com.hus.mim_backend.domain.auth.model.AccountStatus;
+import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.infrastructure.config.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
@@ -33,9 +36,11 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     private static final String LEGACY_RESEARCH_PDF_PREFIX = "/api/v1/storage/research-pdfs/";
 
     private final ResearchPortalRepository repository;
+    private final UserRepository userRepository;
 
-    public ResearchPortalServiceImpl(ResearchPortalRepository repository) {
+    public ResearchPortalServiceImpl(ResearchPortalRepository repository, UserRepository userRepository) {
         this.repository = repository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -124,6 +129,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         validatePdfUrlForCreate(request.getPdfUrl());
 
         UUID userId = resolveCurrentUserId(currentUserEmail);
+        ensureVerifiedPublisher(userId);
         String authorRole = resolveResearchAuthorRole(userId);
         boolean isLecturer = ROLE_LECTURER.equals(authorRole);
         if (isLecturer) {
@@ -167,6 +173,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         validatePdfUrlIfProvided(request.getPdfUrl());
 
         UUID userId = resolveCurrentUserId(currentUserEmail);
+        ensureVerifiedPublisher(userId);
         if (!repository.isOwner(paperId, userId)) {
             return UpdatePaperResult.forbidden();
         }
@@ -227,6 +234,14 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
         if (!isAllowedResearchPdfUrl(pdfUrl.trim())) {
             throw new DomainException("PDF URL must point to MinIO storage endpoint.");
+        }
+    }
+
+    private void ensureVerifiedPublisher(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new DomainException("Authenticated user is not found"));
+        if (user.getStatus() != AccountStatus.APPROVED) {
+            throw new DomainException("Email chưa được xác thực. Tài khoản chỉ được xem nội dung cho tới khi hoàn tất xác thực email.");
         }
     }
 

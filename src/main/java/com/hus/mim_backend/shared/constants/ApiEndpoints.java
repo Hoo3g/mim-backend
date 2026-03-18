@@ -11,6 +11,8 @@ public class ApiEndpoints {
     public static final String REGISTER = "/register";
     public static final String LOGOUT = "/logout";
     public static final String REFRESH_TOKEN = "/refresh-token";
+    public static final String VERIFY_EMAIL = "/verify-email";
+    public static final String RESEND_VERIFY_EMAIL = "/verify-email/resend";
 
     // Admin Endpoints
     public static final String ADMIN = API_V1 + "/admin";

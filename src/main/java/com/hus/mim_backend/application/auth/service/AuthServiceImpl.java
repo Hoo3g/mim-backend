@@ -11,17 +11,24 @@ import com.hus.mim_backend.application.auth.usecase.LoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LogoutUseCase;
 import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
+import com.hus.mim_backend.application.auth.usecase.ResendEmailVerificationUseCase;
+import com.hus.mim_backend.application.auth.usecase.VerifyEmailUseCase;
+import com.hus.mim_backend.application.port.output.EmailVerificationNotificationPort;
+import com.hus.mim_backend.application.port.output.EmailVerificationTokenRepository;
 import com.hus.mim_backend.application.port.output.GoogleTokenVerifier;
 import com.hus.mim_backend.application.port.output.PasswordEncoder;
 import com.hus.mim_backend.application.port.output.RefreshTokenRepository;
 import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.port.output.UserRepository;
+import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.Email;
+import com.hus.mim_backend.domain.auth.model.EmailVerificationToken;
 import com.hus.mim_backend.domain.auth.model.RefreshToken;
 import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.domain.shared.DomainException;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -31,7 +38,8 @@ import java.util.regex.Pattern;
  * NOTE: No @Service or @Transactional here - framework agnostic
  */
 public class AuthServiceImpl
-        implements LoginUseCase, RegisterUseCase, RefreshTokenUseCase, LogoutUseCase, GoogleLoginUseCase {
+        implements LoginUseCase, RegisterUseCase, RefreshTokenUseCase, LogoutUseCase, GoogleLoginUseCase,
+        VerifyEmailUseCase, ResendEmailVerificationUseCase {
 
     private static final Set<String> ALLOWED_USER_TYPES = Set.of("STUDENT", "LECTURER", "COMPANY", "ADMIN");
     private static final Pattern STUDENT_CODE_PATTERN = Pattern.compile("^[A-Z0-9]{6,20}$");
@@ -41,15 +49,24 @@ public class AuthServiceImpl
     private final TokenProvider tokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final EmailVerificationNotificationPort emailVerificationNotificationPort;
+    private final long emailVerificationTokenTtlMinutes;
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
             TokenProvider tokenProvider, RefreshTokenRepository refreshTokenRepository,
-            GoogleTokenVerifier googleTokenVerifier) {
+            GoogleTokenVerifier googleTokenVerifier,
+            EmailVerificationTokenRepository emailVerificationTokenRepository,
+            EmailVerificationNotificationPort emailVerificationNotificationPort,
+            long emailVerificationTokenTtlMinutes) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.refreshTokenRepository = refreshTokenRepository;
         this.googleTokenVerifier = googleTokenVerifier;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
+        this.emailVerificationNotificationPort = emailVerificationNotificationPort;
+        this.emailVerificationTokenTtlMinutes = Math.max(5, emailVerificationTokenTtlMinutes);
     }
 
     @Override
@@ -94,7 +111,7 @@ public class AuthServiceImpl
 
         String encryptedPassword = passwordEncoder.encode(request.getPassword());
 
-        User newUser = User.createNew(email, encryptedPassword, normalizedUserType);
+        User newUser = User.createNew(email, encryptedPassword, normalizedUserType, AccountStatus.PENDING);
 
         User savedUser = userRepository.save(newUser);
 
@@ -106,6 +123,7 @@ public class AuthServiceImpl
             }
         }
 
+        issueEmailVerification(savedUser);
         return UserResponse.fromDomain(savedUser);
     }
 
@@ -172,20 +190,77 @@ public class AuthServiceImpl
             user = userRepository.save(user);
         }
 
+        if (googleUser.emailVerified() && user.getStatus() != AccountStatus.APPROVED) {
+            user.setStatus(AccountStatus.APPROVED);
+            user.setUpdatedAt(LocalDateTime.now());
+            user = userRepository.save(user);
+            emailVerificationTokenRepository.deleteByUserId(user.getId());
+        }
+
         ensureUserCanAuthenticate(user);
         return issueTokens(user);
     }
 
+    @Override
+    public UserResponse verifyEmail(String token) {
+        String normalizedToken = token == null ? "" : token.trim();
+        if (normalizedToken.isEmpty()) {
+            throw new DomainException("Verification token is required");
+        }
+
+        emailVerificationTokenRepository.deleteExpiredTokens();
+
+        EmailVerificationToken verificationToken = emailVerificationTokenRepository.findByToken(normalizedToken)
+                .orElseThrow(() -> new DomainException("Verification link is invalid or has expired"));
+
+        if (verificationToken.isExpired()) {
+            emailVerificationTokenRepository.deleteByToken(normalizedToken);
+            throw new DomainException("Verification link is invalid or has expired");
+        }
+
+        User user = userRepository.findById(verificationToken.getUserId())
+                .orElseThrow(() -> new DomainException("Account not found"));
+
+        if (user.getStatus() == AccountStatus.BLOCKED) {
+            throw new DomainException("Account has been blocked");
+        }
+
+        user.setStatus(AccountStatus.APPROVED);
+        user.setUpdatedAt(LocalDateTime.now());
+        User savedUser = userRepository.save(user);
+        emailVerificationTokenRepository.deleteByUserId(savedUser.getId());
+        return UserResponse.fromDomain(savedUser);
+    }
+
+    @Override
+    public void resendEmailVerification(String email) {
+        if (email == null || email.isBlank()) {
+            throw new AuthException("Authentication required");
+        }
+
+        User user = userRepository.findByEmail(new Email(email.trim()))
+                .orElseThrow(() -> new AuthException("Authenticated user is not found"));
+
+        if (user.getStatus() == AccountStatus.BLOCKED) {
+            throw new DomainException("Account has been blocked");
+        }
+        if (user.getStatus() == AccountStatus.APPROVED) {
+            return;
+        }
+
+        issueEmailVerification(user);
+    }
+
     private User createUserFromGoogle(Email email, String userType, String pictureUrl) {
         String randomPassword = passwordEncoder.encode(UUID.randomUUID().toString());
-        User user = User.createNew(email, randomPassword, userType);
+        User user = User.createNew(email, randomPassword, userType, AccountStatus.APPROVED);
         user.setAvatarUrl(pictureUrl);
         return userRepository.save(user);
     }
 
     private void ensureUserCanAuthenticate(User user) {
-        if (!user.isActive()) {
-            throw new DomainException("Account is pending approval or has been suspended");
+        if (user.getStatus() == AccountStatus.BLOCKED) {
+            throw new DomainException("Account has been blocked");
         }
     }
 
@@ -260,5 +335,22 @@ public class AuthServiceImpl
         }
 
         return normalized;
+    }
+
+    private void issueEmailVerification(User user) {
+        if (user == null || user.getId() == null || user.getEmail() == null) {
+            return;
+        }
+
+        emailVerificationTokenRepository.deleteExpiredTokens();
+        emailVerificationTokenRepository.deleteByUserId(user.getId());
+
+        String token = UUID.randomUUID() + "." + UUID.randomUUID();
+        EmailVerificationToken verificationToken = EmailVerificationToken.issue(
+                user.getId(),
+                token,
+                LocalDateTime.now().plusMinutes(emailVerificationTokenTtlMinutes));
+        emailVerificationTokenRepository.save(verificationToken);
+        emailVerificationNotificationPort.sendVerificationEmail(user.getEmail().value(), token);
     }
 }

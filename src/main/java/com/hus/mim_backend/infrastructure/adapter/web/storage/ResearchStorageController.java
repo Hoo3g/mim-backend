@@ -3,8 +3,13 @@ package com.hus.mim_backend.infrastructure.adapter.web.storage;
 import com.hus.mim_backend.infrastructure.adapter.storage.MinioStorageService;
 import com.hus.mim_backend.infrastructure.adapter.web.storage.dto.ResearchPdfUploadResponse;
 import com.hus.mim_backend.infrastructure.adapter.web.storage.dto.ResearchHeroImageUploadResponse;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.profile.usecase.ProfilePortalUseCase;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
+import com.hus.mim_backend.domain.auth.model.AccountStatus;
+import com.hus.mim_backend.domain.auth.model.Email;
+import com.hus.mim_backend.domain.auth.model.User;
+import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import com.hus.mim_backend.shared.constants.RbacPermissions;
@@ -40,20 +45,25 @@ public class ResearchStorageController {
     private final MinioStorageService storageService;
     private final ProfilePortalUseCase profilePortalUseCase;
     private final ManageResearchPortalUseCase manageResearchPortalUseCase;
+    private final UserRepository userRepository;
 
     public ResearchStorageController(MinioStorageService storageService,
             ProfilePortalUseCase profilePortalUseCase,
-            ManageResearchPortalUseCase manageResearchPortalUseCase) {
+            ManageResearchPortalUseCase manageResearchPortalUseCase,
+            UserRepository userRepository) {
         this.storageService = storageService;
         this.profilePortalUseCase = profilePortalUseCase;
         this.manageResearchPortalUseCase = manageResearchPortalUseCase;
+        this.userRepository = userRepository;
     }
 
     @PostMapping(path = ApiEndpoints.STORAGE + ApiEndpoints.RESEARCH_PDFS,
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize(AUTH_RESEARCH_CREATE)
     public ResponseEntity<ApiResponse<ResearchPdfUploadResponse>> uploadResearchPdf(
-            @RequestPart("file") MultipartFile file) {
+            @RequestPart("file") MultipartFile file,
+            Authentication authentication) {
+        String email = ensureVerifiedAccount(authentication);
         String objectKey = storageService.uploadResearchPdf(file);
         String fileUrl = buildPublicFileUrl(objectKey);
 
@@ -65,7 +75,9 @@ public class ResearchStorageController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize(AUTH_RESEARCH_HERO_EDIT)
     public ResponseEntity<ApiResponse<ResearchHeroImageUploadResponse>> uploadResearchHeroImage(
-            @RequestPart("file") MultipartFile file) {
+            @RequestPart("file") MultipartFile file,
+            Authentication authentication) {
+        ensureVerifiedAccount(authentication);
         String objectKey = storageService.uploadResearchHeroImage(file);
         String fileUrl = buildPublicHeroImageUrl(objectKey);
 
@@ -79,9 +91,9 @@ public class ResearchStorageController {
     public ResponseEntity<ApiResponse<ResearchPdfUploadResponse>> uploadProfileCv(
             @RequestPart("file") MultipartFile file,
             Authentication authentication) {
+        String email = ensureVerifiedAccount(authentication);
         String objectKey = storageService.uploadProfileCv(file);
         String fileUrl = buildPublicProfileCvUrl(objectKey);
-        String email = String.valueOf(authentication.getPrincipal());
         profilePortalUseCase.updateStudentDefaultCv(email, fileUrl);
 
         ResearchPdfUploadResponse response = new ResearchPdfUploadResponse(objectKey, fileUrl);
@@ -94,9 +106,9 @@ public class ResearchStorageController {
     public ResponseEntity<ApiResponse<ResearchHeroImageUploadResponse>> uploadAvatar(
             @RequestPart("file") MultipartFile file,
             Authentication authentication) {
+        String email = ensureVerifiedAccount(authentication);
         String objectKey = storageService.uploadAvatarImage(file);
         String fileUrl = buildPublicAvatarUrl(objectKey);
-        String email = String.valueOf(authentication.getPrincipal());
         profilePortalUseCase.updateUserAvatar(email, fileUrl);
 
         ResearchHeroImageUploadResponse response = new ResearchHeroImageUploadResponse(objectKey, fileUrl);
@@ -197,6 +209,27 @@ public class ResearchStorageController {
                 .contentType(mediaType)
                 .contentLength(object.size())
                 .body(new InputStreamResource(object.stream()));
+    }
+
+    private String ensureVerifiedAccount(Authentication authentication) {
+        String email = resolveAuthenticatedEmail(authentication);
+        User user = userRepository.findByEmail(new Email(email.trim()))
+                .orElseThrow(() -> new DomainException("Authenticated user is not found"));
+        if (user.getStatus() != AccountStatus.APPROVED) {
+            throw new DomainException("Email chưa được xác thực. Tài khoản hiện chỉ được phép xem nội dung cho tới khi hoàn tất xác thực email.");
+        }
+        return email.trim();
+    }
+
+    private String resolveAuthenticatedEmail(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new DomainException("Authentication required");
+        }
+        String email = String.valueOf(authentication.getPrincipal());
+        if (!StringUtils.hasText(email)) {
+            throw new DomainException("Authentication required");
+        }
+        return email;
     }
 
     private String buildPublicFileUrl(String objectKey) {

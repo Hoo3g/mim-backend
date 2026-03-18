@@ -2,6 +2,9 @@ package com.hus.mim_backend.application.profile.service;
 
 import com.hus.mim_backend.application.port.output.ProfilePortalRepository;
 import com.hus.mim_backend.application.port.output.SpecializationRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
+import com.hus.mim_backend.domain.auth.model.AccountStatus;
+import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.application.profile.dto.ProfileDashboardResponse;
 import com.hus.mim_backend.application.profile.dto.ProfileMeResponse;
 import com.hus.mim_backend.application.profile.dto.UpdateCompanyProfileRequest;
@@ -21,11 +24,14 @@ public class ProfilePortalService implements ProfilePortalUseCase {
 
     private final ProfilePortalRepository repository;
     private final SpecializationRepository specializationRepository;
+    private final UserRepository userRepository;
 
     public ProfilePortalService(ProfilePortalRepository repository,
-            SpecializationRepository specializationRepository) {
+            SpecializationRepository specializationRepository,
+            UserRepository userRepository) {
         this.repository = repository;
         this.specializationRepository = specializationRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -77,6 +83,7 @@ public class ProfilePortalService implements ProfilePortalUseCase {
     @Override
     public ProfileMeResponse updateStudentProfile(String email, UpdateStudentProfileRequest request) {
         UUID userId = resolveUserId(email);
+        ensureVerifiedUser(userId);
         ensureRole(userId, ROLE_STUDENT);
         UpdateStudentProfileRequest sanitized = request == null ? new UpdateStudentProfileRequest() : request;
         validateStudentMajor(sanitized);
@@ -87,6 +94,7 @@ public class ProfilePortalService implements ProfilePortalUseCase {
     @Override
     public ProfileMeResponse updateCompanyProfile(String email, UpdateCompanyProfileRequest request) {
         UUID userId = resolveUserId(email);
+        ensureVerifiedUser(userId);
         ensureRole(userId, ROLE_COMPANY);
         repository.upsertCompanyProfile(userId, request == null ? new UpdateCompanyProfileRequest() : request);
         return getMyProfile(email);
@@ -95,6 +103,7 @@ public class ProfilePortalService implements ProfilePortalUseCase {
     @Override
     public ProfileMeResponse updateLecturerProfile(String email, UpdateLecturerProfileRequest request) {
         UUID userId = resolveUserId(email);
+        ensureVerifiedUser(userId);
         ensureRole(userId, ROLE_LECTURER);
         repository.upsertLecturerProfile(userId, request == null ? new UpdateLecturerProfileRequest() : request);
         return getMyProfile(email);
@@ -103,6 +112,7 @@ public class ProfilePortalService implements ProfilePortalUseCase {
     @Override
     public ProfileMeResponse updateStudentDefaultCv(String email, String cvUrl) {
         UUID userId = resolveUserId(email);
+        ensureVerifiedUser(userId);
         ensureRole(userId, ROLE_STUDENT);
         if (!StringUtils.hasText(cvUrl)) {
             throw new DomainException("CV URL is required");
@@ -114,6 +124,7 @@ public class ProfilePortalService implements ProfilePortalUseCase {
     @Override
     public ProfileMeResponse updateUserAvatar(String email, String avatarUrl) {
         UUID userId = resolveUserId(email);
+        ensureVerifiedUser(userId);
         if (!StringUtils.hasText(avatarUrl)) {
             throw new DomainException("Avatar URL is required");
         }
@@ -142,6 +153,14 @@ public class ProfilePortalService implements ProfilePortalUseCase {
         String role = repository.findPrimaryRole(userId).orElse(ROLE_STUDENT);
         if (!expectedRole.equalsIgnoreCase(role)) {
             throw new DomainException("Current account does not match target profile type");
+        }
+    }
+
+    private void ensureVerifiedUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new DomainException("Authenticated user is not found"));
+        if (user.getStatus() != AccountStatus.APPROVED) {
+            throw new DomainException("Email chưa được xác thực. Tài khoản hiện chỉ được phép xem nội dung cho tới khi hoàn tất xác thực email.");
         }
     }
 

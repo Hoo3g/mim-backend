@@ -27,19 +27,14 @@ public class User {
     }
 
     /**
-     * Factory method: Creates a new user with business rules applied
+     * Factory method: Creates a new user with an explicit account status.
      */
-    public static User createNew(Email email, String encryptedPassword, String userType) {
-        // Business rule: Students are auto-approved, others need approval
-        AccountStatus initialStatus = "STUDENT".equals(userType)
-                ? AccountStatus.APPROVED
-                : AccountStatus.PENDING;
-
+    public static User createNew(Email email, String encryptedPassword, String userType, AccountStatus initialStatus) {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail(email);
         user.setPassword(encryptedPassword);
-        user.setStatus(initialStatus);
+        user.setStatus(initialStatus == null ? AccountStatus.PENDING : initialStatus);
         user.setRoles(Set.of(userType));
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());

@@ -6,6 +6,8 @@ import com.hus.mim_backend.application.auth.usecase.LoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LogoutUseCase;
 import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
+import com.hus.mim_backend.application.auth.usecase.ResendEmailVerificationUseCase;
+import com.hus.mim_backend.application.auth.usecase.VerifyEmailUseCase;
 import com.hus.mim_backend.application.content.service.ResearchHeroContentServiceImpl;
 import com.hus.mim_backend.application.content.usecase.ManageResearchHeroContentUseCase;
 import com.hus.mim_backend.application.moderation.service.AdminModerationServiceImpl;
@@ -20,6 +22,8 @@ import com.hus.mim_backend.application.port.output.AdminActivityNotificationPort
 import com.hus.mim_backend.application.port.output.ApplicationRepository;
 import com.hus.mim_backend.application.port.output.ApplicationPortalRepository;
 import com.hus.mim_backend.application.port.output.CompanyRepository;
+import com.hus.mim_backend.application.port.output.EmailVerificationNotificationPort;
+import com.hus.mim_backend.application.port.output.EmailVerificationTokenRepository;
 import com.hus.mim_backend.application.port.output.LecturerRepository;
 import com.hus.mim_backend.application.port.output.ModerationLogRepository;
 import com.hus.mim_backend.application.port.output.NewsRepository;
@@ -90,9 +94,13 @@ public class BeanConfig {
             PasswordEncoder passwordEncoder,
             TokenProvider tokenProvider,
             RefreshTokenRepository refreshTokenRepository,
-            GoogleTokenVerifier googleTokenVerifier) {
+            GoogleTokenVerifier googleTokenVerifier,
+            EmailVerificationTokenRepository emailVerificationTokenRepository,
+            EmailVerificationNotificationPort emailVerificationNotificationPort,
+            EmailVerificationProperties emailVerificationProperties) {
         return new AuthServiceImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository,
-                googleTokenVerifier);
+                googleTokenVerifier, emailVerificationTokenRepository, emailVerificationNotificationPort,
+                emailVerificationProperties.getTokenTtlMinutes());
     }
 
     @Bean
@@ -117,6 +125,16 @@ public class BeanConfig {
 
     @Bean
     public GoogleLoginUseCase googleLoginUseCase(AuthServiceImpl authService) {
+        return authService;
+    }
+
+    @Bean
+    public VerifyEmailUseCase verifyEmailUseCase(AuthServiceImpl authService) {
+        return authService;
+    }
+
+    @Bean
+    public ResendEmailVerificationUseCase resendEmailVerificationUseCase(AuthServiceImpl authService) {
         return authService;
     }
 
@@ -191,8 +209,9 @@ public class BeanConfig {
 
     @Bean
     @ConditionalOnBean(PostPortalRepository.class)
-    public PostPortalService postPortalService(PostPortalRepository postPortalRepository) {
-        return new PostPortalService(postPortalRepository);
+    public PostPortalService postPortalService(PostPortalRepository postPortalRepository,
+            UserRepository userRepository) {
+        return new PostPortalService(postPortalRepository, userRepository);
     }
 
     @Bean
@@ -268,8 +287,9 @@ public class BeanConfig {
 
     @Bean
     @ConditionalOnBean(ResearchPortalRepository.class)
-    public ResearchPortalServiceImpl researchPortalService(ResearchPortalRepository researchPortalRepository) {
-        return new ResearchPortalServiceImpl(researchPortalRepository);
+    public ResearchPortalServiceImpl researchPortalService(ResearchPortalRepository researchPortalRepository,
+            UserRepository userRepository) {
+        return new ResearchPortalServiceImpl(researchPortalRepository, userRepository);
     }
 
     @Bean
@@ -368,10 +388,11 @@ public class BeanConfig {
     }
 
     @Bean
-    @ConditionalOnBean({ ProfilePortalRepository.class, SpecializationRepository.class })
+    @ConditionalOnBean({ ProfilePortalRepository.class, SpecializationRepository.class, UserRepository.class })
     public ProfilePortalService profilePortalService(ProfilePortalRepository profilePortalRepository,
-            SpecializationRepository specializationRepository) {
-        return new ProfilePortalService(profilePortalRepository, specializationRepository);
+            SpecializationRepository specializationRepository,
+            UserRepository userRepository) {
+        return new ProfilePortalService(profilePortalRepository, specializationRepository, userRepository);
     }
 
     @Bean

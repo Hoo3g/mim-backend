@@ -5,19 +5,26 @@ import com.hus.mim_backend.application.auth.dto.GoogleLoginRequest;
 import com.hus.mim_backend.application.auth.dto.LoginRequest;
 import com.hus.mim_backend.application.auth.dto.RegisterRequest;
 import com.hus.mim_backend.application.auth.dto.UserResponse;
+import com.hus.mim_backend.application.auth.dto.VerifyEmailRequest;
 import com.hus.mim_backend.application.auth.usecase.GoogleLoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LogoutUseCase;
 import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
+import com.hus.mim_backend.application.auth.usecase.ResendEmailVerificationUseCase;
+import com.hus.mim_backend.application.auth.usecase.VerifyEmailUseCase;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.domain.shared.AuthException;
+import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.infrastructure.adapter.security.RefreshTokenCookieService;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,18 +45,24 @@ public class AuthController {
     private final RegisterUseCase registerUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
+    private final VerifyEmailUseCase verifyEmailUseCase;
+    private final ResendEmailVerificationUseCase resendEmailVerificationUseCase;
     private final RefreshTokenCookieService refreshTokenCookieService;
     private final ManageRbacUseCase manageRbacUseCase;
 
     public AuthController(LoginUseCase loginUseCase, GoogleLoginUseCase googleLoginUseCase,
             RegisterUseCase registerUseCase, RefreshTokenUseCase refreshTokenUseCase,
-            LogoutUseCase logoutUseCase, RefreshTokenCookieService refreshTokenCookieService,
+            LogoutUseCase logoutUseCase, VerifyEmailUseCase verifyEmailUseCase,
+            ResendEmailVerificationUseCase resendEmailVerificationUseCase,
+            RefreshTokenCookieService refreshTokenCookieService,
             ManageRbacUseCase manageRbacUseCase) {
         this.loginUseCase = loginUseCase;
         this.googleLoginUseCase = googleLoginUseCase;
         this.registerUseCase = registerUseCase;
         this.refreshTokenUseCase = refreshTokenUseCase;
         this.logoutUseCase = logoutUseCase;
+        this.verifyEmailUseCase = verifyEmailUseCase;
+        this.resendEmailVerificationUseCase = resendEmailVerificationUseCase;
         this.refreshTokenCookieService = refreshTokenCookieService;
         this.manageRbacUseCase = manageRbacUseCase;
     }
@@ -76,6 +89,22 @@ public class AuthController {
     @PostMapping(ApiEndpoints.REGISTER)
     public ResponseEntity<ApiResponse<UserResponse>> register(@RequestBody RegisterRequest request) {
         return ResponseEntity.ok(ApiResponse.success(registerUseCase.register(request), "Registration successful"));
+    }
+
+    @PostMapping(ApiEndpoints.VERIFY_EMAIL)
+    public ResponseEntity<ApiResponse<UserResponse>> verifyEmail(@RequestBody VerifyEmailRequest request) {
+        if (request == null || request.getToken() == null || request.getToken().isBlank()) {
+            throw new DomainException("Verification token is required");
+        }
+        UserResponse user = verifyEmailUseCase.verifyEmail(request.getToken());
+        return ResponseEntity.ok(ApiResponse.success(user, "Email verified successfully"));
+    }
+
+    @PostMapping(ApiEndpoints.RESEND_VERIFY_EMAIL)
+    public ResponseEntity<ApiResponse<Void>> resendVerifyEmail(Authentication authentication) {
+        String email = resolveAuthenticatedEmail(authentication);
+        resendEmailVerificationUseCase.resendEmailVerification(email);
+        return ResponseEntity.ok(ApiResponse.success(null, "Verification email sent"));
     }
 
     @PostMapping(ApiEndpoints.REFRESH_TOKEN)
@@ -118,5 +147,16 @@ public class AuthController {
         } catch (RuntimeException ex) {
             authResponse.getUser().setPermissions(Set.of());
         }
+    }
+
+    private String resolveAuthenticatedEmail(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new AuthException("Authentication required");
+        }
+        String email = String.valueOf(authentication.getPrincipal());
+        if (!StringUtils.hasText(email)) {
+            throw new AuthException("Authentication required");
+        }
+        return email.trim();
     }
 }

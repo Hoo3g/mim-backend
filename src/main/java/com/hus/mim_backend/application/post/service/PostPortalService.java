@@ -2,10 +2,13 @@ package com.hus.mim_backend.application.post.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
 import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
+import com.hus.mim_backend.domain.auth.model.AccountStatus;
+import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.infrastructure.config.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
@@ -32,10 +35,12 @@ public class PostPortalService implements PostPortalUseCase {
     private static final Set<String> ALLOWED_POST_STATUSES = Set.of("OPEN", "CLOSED", "DRAFT");
 
     private final PostPortalRepository repository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public PostPortalService(PostPortalRepository repository) {
+    public PostPortalService(PostPortalRepository repository, UserRepository userRepository) {
         this.repository = repository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -70,6 +75,7 @@ public class PostPortalService implements PostPortalUseCase {
         }
 
         UUID userId = resolveUserId(email);
+        ensureVerifiedPublisher(userId);
         String role = resolveRole(userId);
         normalizeAndValidate(request, role);
 
@@ -93,6 +99,7 @@ public class PostPortalService implements PostPortalUseCase {
         }
 
         UUID userId = resolveUserId(email);
+        ensureVerifiedPublisher(userId);
         String role = resolveRole(userId);
         normalizeAndValidate(request, role);
 
@@ -120,6 +127,14 @@ public class PostPortalService implements PostPortalUseCase {
         return repository.findPrimaryRole(userId)
                 .orElse("STUDENT")
                 .toUpperCase(Locale.ROOT);
+    }
+
+    private void ensureVerifiedPublisher(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new DomainException("Authenticated user is not found"));
+        if (user.getStatus() != AccountStatus.APPROVED) {
+            throw new DomainException("Email chưa được xác thực. Tài khoản chỉ được xem nội dung cho tới khi hoàn tất xác thực email.");
+        }
     }
 
     private void normalizeAndValidate(UpsertRecruitmentPostRequest request, String role) {
