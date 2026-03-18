@@ -54,6 +54,7 @@ public class SmtpEmailVerificationNotificationAdapter implements EmailVerificati
             message.setSubject(resolveSubject());
             message.setText(buildBody(verificationLink));
             mailSender.send(message);
+            log.info("Verification email sent to {}", recipientEmail.trim());
         } catch (RuntimeException ex) {
             log.warn("Unable to send verification email to {}", recipientEmail.trim(), ex);
         }
