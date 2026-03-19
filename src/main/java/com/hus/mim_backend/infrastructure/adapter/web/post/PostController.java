@@ -3,7 +3,9 @@ package com.hus.mim_backend.infrastructure.adapter.web.post;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
 import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
+import com.hus.mim_backend.application.post.usecase.QueryPublicPostsPageUseCase;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
+import com.hus.mim_backend.application.shared.PagedResult;
 import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
@@ -30,10 +32,14 @@ import java.util.UUID;
 @RequestMapping(ApiEndpoints.POSTS)
 public class PostController {
     private final QueryPublicPostsUseCase queryPublicPostsUseCase;
+    private final QueryPublicPostsPageUseCase queryPublicPostsPageUseCase;
     private final PostPortalUseCase postPortalUseCase;
 
-    public PostController(QueryPublicPostsUseCase queryPublicPostsUseCase, PostPortalUseCase postPortalUseCase) {
+    public PostController(QueryPublicPostsUseCase queryPublicPostsUseCase,
+            QueryPublicPostsPageUseCase queryPublicPostsPageUseCase,
+            PostPortalUseCase postPortalUseCase) {
         this.queryPublicPostsUseCase = queryPublicPostsUseCase;
+        this.queryPublicPostsPageUseCase = queryPublicPostsPageUseCase;
         this.postPortalUseCase = postPortalUseCase;
     }
 
@@ -44,6 +50,22 @@ public class PostController {
             @RequestParam(name = "specialization", required = false) List<String> specializations) {
         List<PublicPostResponse> posts = queryPublicPostsUseCase.getPosts(keyword, type, specializations);
         return ResponseEntity.ok(ApiResponse.success(posts, "Get posts successfully"));
+    }
+
+    @GetMapping(ApiEndpoints.POSTS_PAGED)
+    public ResponseEntity<ApiResponse<PagedResult<PublicPostResponse>>> getPostsPaged(
+            @RequestParam(name = "q", required = false) String keyword,
+            @RequestParam(name = "type", required = false) String type,
+            @RequestParam(name = "specialization", required = false) List<String> specializations,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+        PagedResult<PublicPostResponse> posts = queryPublicPostsPageUseCase.getPostsPage(
+                keyword,
+                type,
+                specializations,
+                page,
+                size);
+        return ResponseEntity.ok(ApiResponse.success(posts, "Get paged posts successfully"));
     }
 
     @GetMapping(ApiEndpoints.POST_BY_ID)

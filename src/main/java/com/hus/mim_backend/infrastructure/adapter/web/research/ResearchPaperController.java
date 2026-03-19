@@ -3,6 +3,8 @@ package com.hus.mim_backend.infrastructure.adapter.web.research;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
 import com.hus.mim_backend.application.research.dto.UpsertPaperRequest;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
+import com.hus.mim_backend.application.research.usecase.QueryPublicResearchPapersPageUseCase;
+import com.hus.mim_backend.application.shared.PagedResult;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
@@ -34,9 +36,12 @@ public class ResearchPaperController {
     private static final String AUTH_RESEARCH_EDIT_OWN = "hasAuthority('PERM_" + RbacPermissions.RESEARCH_EDIT_OWN + "')";
 
     private final ManageResearchPortalUseCase manageResearchPortalUseCase;
+    private final QueryPublicResearchPapersPageUseCase queryPublicResearchPapersPageUseCase;
 
-    public ResearchPaperController(ManageResearchPortalUseCase manageResearchPortalUseCase) {
+    public ResearchPaperController(ManageResearchPortalUseCase manageResearchPortalUseCase,
+            QueryPublicResearchPapersPageUseCase queryPublicResearchPapersPageUseCase) {
         this.manageResearchPortalUseCase = manageResearchPortalUseCase;
+        this.queryPublicResearchPapersPageUseCase = queryPublicResearchPapersPageUseCase;
     }
 
     @GetMapping
@@ -46,6 +51,24 @@ public class ResearchPaperController {
             @RequestParam(name = "specialization", required = false) List<String> researchAreas) {
         List<PaperResponse> papers = manageResearchPortalUseCase.getAllApprovedPapers(keyword, category, researchAreas);
         return ResponseEntity.ok(ApiResponse.success(papers, "Get papers successfully"));
+    }
+
+    @GetMapping(ApiEndpoints.RESEARCH_PAGED)
+    public ResponseEntity<ApiResponse<PagedResult<PaperResponse>>> getPagedPapers(
+            @RequestParam(name = "q", required = false) String keyword,
+            @RequestParam(name = "type", required = false) String category,
+            @RequestParam(name = "specialization", required = false) List<String> researchAreas,
+            @RequestParam(name = "metric", required = false) String metricSort,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+        PagedResult<PaperResponse> papers = queryPublicResearchPapersPageUseCase.getPapersPage(
+                keyword,
+                category,
+                researchAreas,
+                metricSort,
+                page,
+                size);
+        return ResponseEntity.ok(ApiResponse.success(papers, "Get paged papers successfully"));
     }
 
     @GetMapping(ApiEndpoints.RESEARCH_MY)

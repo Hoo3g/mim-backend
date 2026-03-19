@@ -126,7 +126,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     })
     public PaperResponse createPaper(String currentUserEmail, UpsertPaperRequest request) {
         validateUpsertRequest(request);
-        validatePdfUrlForCreate(request.getPdfUrl());
+        validatePdfUrlIfProvided(request.getPdfUrl());
 
         UUID userId = resolveCurrentUserId(currentUserEmail);
         ensureVerifiedPublisher(userId);
@@ -218,13 +218,6 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             return "";
         }
         return pdfUrl.trim();
-    }
-
-    private void validatePdfUrlForCreate(String pdfUrl) {
-        if (!StringUtils.hasText(pdfUrl)) {
-            throw new DomainException("PDF URL is required. Please upload PDF to MinIO first.");
-        }
-        validatePdfUrlIfProvided(pdfUrl);
     }
 
     private void validatePdfUrlIfProvided(String pdfUrl) {

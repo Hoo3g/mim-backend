@@ -31,12 +31,14 @@ import com.hus.mim_backend.application.port.output.PasswordEncoder;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
 import com.hus.mim_backend.application.port.output.PostRepository;
 import com.hus.mim_backend.application.port.output.ProfilePortalRepository;
+import com.hus.mim_backend.application.port.output.PublicPostPageRepository;
 import com.hus.mim_backend.application.port.output.PublicPostRepository;
 import com.hus.mim_backend.application.port.output.RbacRepository;
 import com.hus.mim_backend.application.port.output.RefreshTokenRepository;
 import com.hus.mim_backend.application.port.output.ResearchBookmarkRepository;
 import com.hus.mim_backend.application.port.output.ResearchCategoryRepository;
 import com.hus.mim_backend.application.port.output.ResearchHeroContentRepository;
+import com.hus.mim_backend.application.port.output.ResearchPaperPageRepository;
 import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.application.port.output.ResearchPaperRepository;
 import com.hus.mim_backend.application.port.output.SavedPostRepository;
@@ -46,12 +48,14 @@ import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.service.PostServiceImpl;
 import com.hus.mim_backend.application.post.service.PostPortalService;
+import com.hus.mim_backend.application.post.service.PublicPostPageQueryServiceImpl;
 import com.hus.mim_backend.application.post.service.PublicPostQueryServiceImpl;
 import com.hus.mim_backend.application.post.service.ApplicationPortalService;
 import com.hus.mim_backend.application.post.usecase.ApplicationPortalUseCase;
 import com.hus.mim_backend.application.post.usecase.ApplyToPostUseCase;
 import com.hus.mim_backend.application.post.usecase.ManagePostUseCase;
 import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
+import com.hus.mim_backend.application.post.usecase.QueryPublicPostsPageUseCase;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
 import com.hus.mim_backend.application.profile.service.CompanyProfileService;
 import com.hus.mim_backend.application.profile.service.LecturerProfileService;
@@ -65,11 +69,13 @@ import com.hus.mim_backend.application.rbac.service.RbacServiceImpl;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.application.research.service.ResearchBookmarkService;
 import com.hus.mim_backend.application.research.service.ResearchCategoryServiceImpl;
+import com.hus.mim_backend.application.research.service.PublicResearchPaperPageQueryServiceImpl;
 import com.hus.mim_backend.application.research.service.ResearchPortalServiceImpl;
 import com.hus.mim_backend.application.research.service.SpecializationServiceImpl;
 import com.hus.mim_backend.application.research.usecase.ManageSpecializationUseCase;
 import com.hus.mim_backend.application.research.usecase.ManageResearchCategoryUseCase;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
+import com.hus.mim_backend.application.research.usecase.QueryPublicResearchPapersPageUseCase;
 import com.hus.mim_backend.application.research.usecase.QueryResearchCategoryUseCase;
 import com.hus.mim_backend.application.research.usecase.QuerySpecializationUseCase;
 import com.hus.mim_backend.application.research.usecase.ResearchBookmarkUseCase;
@@ -208,6 +214,19 @@ public class BeanConfig {
     }
 
     @Bean
+    @ConditionalOnBean(PublicPostPageRepository.class)
+    public PublicPostPageQueryServiceImpl publicPostPageQueryService(PublicPostPageRepository publicPostPageRepository) {
+        return new PublicPostPageQueryServiceImpl(publicPostPageRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(PublicPostPageQueryServiceImpl.class)
+    public QueryPublicPostsPageUseCase queryPublicPostsPageUseCase(
+            PublicPostPageQueryServiceImpl publicPostPageQueryService) {
+        return publicPostPageQueryService;
+    }
+
+    @Bean
     @ConditionalOnBean(PostPortalRepository.class)
     public PostPortalService postPortalService(PostPortalRepository postPortalRepository,
             UserRepository userRepository) {
@@ -296,6 +315,20 @@ public class BeanConfig {
     @ConditionalOnBean(ResearchPortalServiceImpl.class)
     public ManageResearchPortalUseCase manageResearchPortalUseCase(ResearchPortalServiceImpl researchPortalService) {
         return researchPortalService;
+    }
+
+    @Bean
+    @ConditionalOnBean(ResearchPaperPageRepository.class)
+    public PublicResearchPaperPageQueryServiceImpl publicResearchPaperPageQueryService(
+            ResearchPaperPageRepository researchPaperPageRepository) {
+        return new PublicResearchPaperPageQueryServiceImpl(researchPaperPageRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(PublicResearchPaperPageQueryServiceImpl.class)
+    public QueryPublicResearchPapersPageUseCase queryPublicResearchPapersPageUseCase(
+            PublicResearchPaperPageQueryServiceImpl publicResearchPaperPageQueryService) {
+        return publicResearchPaperPageQueryService;
     }
 
     @Bean
