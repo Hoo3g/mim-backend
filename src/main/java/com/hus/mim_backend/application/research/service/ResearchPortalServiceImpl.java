@@ -1,5 +1,6 @@
 package com.hus.mim_backend.application.research.service;
 
+import com.hus.mim_backend.application.port.output.PendingContentNotificationPort;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
@@ -9,6 +10,8 @@ import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -29,6 +32,8 @@ import java.util.stream.Collectors;
  * Application service for research portal APIs.
  */
 public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
+    private static final Logger log = LoggerFactory.getLogger(ResearchPortalServiceImpl.class);
+
     private static final String ROLE_LECTURER = "LECTURER";
     private static final String ROLE_STUDENT = "STUDENT";
     private static final String DEFAULT_JOURNAL = "MIM Draft";
@@ -37,10 +42,14 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
     private final ResearchPortalRepository repository;
     private final UserRepository userRepository;
+    private final PendingContentNotificationPort pendingContentNotificationPort;
 
-    public ResearchPortalServiceImpl(ResearchPortalRepository repository, UserRepository userRepository) {
+    public ResearchPortalServiceImpl(ResearchPortalRepository repository,
+            UserRepository userRepository,
+            PendingContentNotificationPort pendingContentNotificationPort) {
         this.repository = repository;
         this.userRepository = userRepository;
+        this.pendingContentNotificationPort = pendingContentNotificationPort;
     }
 
     @Override
@@ -158,6 +167,15 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         PaperResponse response = repository.findPaperById(paperId)
                 .orElseThrow(() -> new DomainException("Research paper not found"));
         loadAuthors(response);
+
+        // Notify admins about new pending content
+        try {
+            pendingContentNotificationPort.notifyNewPendingContent(
+                    "PAPER", request.getTitle(), currentUserEmail);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to send pending content notification for paper {}: {}", paperId, ex.getMessage());
+        }
+
         return response;
     }
 

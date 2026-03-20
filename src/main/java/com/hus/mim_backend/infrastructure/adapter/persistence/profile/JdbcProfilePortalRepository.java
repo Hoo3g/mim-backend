@@ -1,21 +1,19 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.profile;
 
 import com.hus.mim_backend.application.port.output.ProfilePortalRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.profile.dto.ProfileDashboardResponse;
 import com.hus.mim_backend.application.profile.dto.ProfileMeResponse;
 import com.hus.mim_backend.application.profile.dto.UpdateCompanyProfileRequest;
 import com.hus.mim_backend.application.profile.dto.UpdateLecturerProfileRequest;
 import com.hus.mim_backend.application.profile.dto.UpdateStudentProfileRequest;
+import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
+import com.hus.mim_backend.shared.constants.RoleNames;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.sql.Array;
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,25 +79,21 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
             WHERE u.id = ?
             """;
 
-    private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
-            SELECT id FROM users WHERE email = ?
-            """;
-
     private static final String SELECT_PRIMARY_ROLE_SQL = """
-            SELECT COALESCE(r.name, 'STUDENT')
+            SELECT COALESCE(r.name, '%s')
             FROM users u
             LEFT JOIN user_roles ur ON ur.user_id = u.id
             LEFT JOIN roles r ON r.id = ur.role_id
             WHERE u.id = ?
             ORDER BY CASE r.name
-                WHEN 'ADMIN' THEN 1
+                WHEN 'ADMIN'    THEN 1
                 WHEN 'LECTURER' THEN 2
-                WHEN 'COMPANY' THEN 3
-                WHEN 'STUDENT' THEN 4
+                WHEN 'COMPANY'  THEN 3
+                WHEN 'STUDENT'  THEN 4
                 ELSE 99
             END
             LIMIT 1
-            """;
+            """.formatted(RoleNames.STUDENT);
 
     private static final String SELECT_STUDENT_SAVED_PAPERS_SQL = """
             SELECT sr.paper_id,
@@ -309,9 +303,11 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
             """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final UserRepository userRepository;
 
-    public JdbcProfilePortalRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcProfilePortalRepository(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -326,13 +322,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
 
     @Override
     public Optional<UUID> findUserIdByEmail(String email) {
-        List<UUID> ids = jdbcTemplate.query(SELECT_USER_ID_BY_EMAIL_SQL,
-                (rs, rowNum) -> rs.getObject("id", UUID.class),
-                email);
-        if (ids.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(ids.getFirst());
+        return userRepository.findIdByEmail(email);
     }
 
     @Override
@@ -359,7 +349,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
                     item.setResearchArea(rs.getString("research_area"));
                     item.setCategory(rs.getString("category"));
                     item.setPublicationYear(rs.getObject("publication_year", Integer.class));
-                    item.setSavedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+                    item.setSavedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
                     return item;
                 },
                 userId);
@@ -375,7 +365,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
                     item.setPostType(rs.getString("post_type"));
                     item.setLocation(rs.getString("location"));
                     item.setStatus(rs.getString("status"));
-                    item.setAppliedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+                    item.setAppliedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
                     return item;
                 },
                 userId);
@@ -398,7 +388,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
                     item.setStatus(rs.getString("status"));
                     item.setApprovalStatus(rs.getString("approval_status"));
                     item.setPendingCount(rs.getInt("pending_count"));
-                    item.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+                    item.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
                     return item;
                 },
                 userId);
@@ -414,7 +404,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
                     item.setApplicantName(rs.getString("applicant_name"));
                     item.setMessage(rs.getString("message"));
                     item.setCvUrl(rs.getString("cv_url"));
-                    item.setAppliedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+                    item.setAppliedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
                     return item;
                 },
                 userId);
@@ -437,7 +427,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
                     item.setResearchArea(rs.getString("research_area"));
                     item.setApprovalStatus(rs.getString("approval_status"));
                     item.setPublicationYear(rs.getObject("publication_year", Integer.class));
-                    item.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+                    item.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
                     return item;
                 },
                 userId);
@@ -538,27 +528,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        return timestamp.toLocalDateTime();
-    }
 
-    private List<String> toStringList(Array sqlArray) {
-        if (sqlArray == null) {
-            return new ArrayList<>();
-        }
-        try {
-            Object value = sqlArray.getArray();
-            if (value instanceof String[] items) {
-                return Arrays.stream(items).toList();
-            }
-        } catch (SQLException ignored) {
-            // return empty list
-        }
-        return new ArrayList<>();
-    }
 
     private Optional<ProfileMeResponse> querySingleProfile(String sql, Object parameter) {
         List<ProfileMeResponse> rows = jdbcTemplate.query(sql, (rs, rowNum) -> {
@@ -599,7 +569,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
             lecturer.setAcademicRank(rs.getString("lecturer_academic_rank"));
             lecturer.setBio(rs.getString("lecturer_bio"));
             lecturer.setAvatarUrl(rs.getString("lecturer_avatar_url"));
-            lecturer.setResearchInterests(toStringList(rs.getArray("research_interests")));
+            lecturer.setResearchInterests(JdbcMappingUtils.toStringList(rs.getArray("research_interests")));
             response.setLecturer(lecturer);
             return response;
         }, parameter);

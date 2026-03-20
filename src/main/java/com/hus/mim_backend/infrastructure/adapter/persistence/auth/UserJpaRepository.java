@@ -17,6 +17,9 @@ import java.util.UUID;
 public interface UserJpaRepository extends JpaRepository<UserEntity, UUID> {
     Optional<UserEntity> findByEmail(String email);
 
+    @Query("SELECT u.id FROM UserEntity u WHERE UPPER(u.email) = UPPER(:email)")
+    Optional<UUID> findIdByEmail(@Param("email") String email);
+
     @Query(value = """
             SELECT u.*
             FROM users u

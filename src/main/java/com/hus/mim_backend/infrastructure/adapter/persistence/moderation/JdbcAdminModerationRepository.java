@@ -1,13 +1,14 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.moderation;
 
+import com.hus.mim_backend.application.port.output.AdminModerationRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.moderation.dto.ModerationPaperResponse;
 import com.hus.mim_backend.application.moderation.dto.ModerationPostResponse;
-import com.hus.mim_backend.application.port.output.AdminModerationRepository;
+import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
+import com.hus.mim_backend.shared.constants.RoleNames;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import java.util.UUID;
  */
 @Component
 public class JdbcAdminModerationRepository implements AdminModerationRepository {
+
     private static final String SELECT_PENDING_POSTS_SQL = """
             SELECT p.id,
                    p.title,
@@ -69,19 +71,19 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
 
     private static final String UPDATE_POST_MODERATION_SQL = """
             UPDATE posts
-            SET approval_status = ?,
-                moderator_id = ?,
+            SET approval_status    = ?,
+                moderator_id       = ?,
                 moderation_comment = ?,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at         = CURRENT_TIMESTAMP
             WHERE id = ?
             """;
 
     private static final String UPDATE_PAPER_MODERATION_SQL = """
             UPDATE research_papers
-            SET approval_status = ?,
-                moderator_id = ?,
+            SET approval_status    = ?,
+                moderator_id       = ?,
                 moderation_comment = ?,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at         = CURRENT_TIMESTAMP
             WHERE id = ?
             """;
 
@@ -90,25 +92,23 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """;
 
-    private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
-            SELECT id FROM users WHERE email = ?
-            """;
-
     private static final String SELECT_ADMIN_EMAILS_SQL = """
             SELECT DISTINCT u.email
             FROM users u
             JOIN user_roles ur ON ur.user_id = u.id
             JOIN roles r ON r.id = ur.role_id
-            WHERE UPPER(r.name) = 'ADMIN'
+            WHERE UPPER(r.name) = '%s'
               AND u.email IS NOT NULL
               AND TRIM(u.email) <> ''
             ORDER BY u.email
-            """;
+            """.formatted(RoleNames.ADMIN);
 
     private final JdbcTemplate jdbcTemplate;
+    private final UserRepository userRepository;
 
-    public JdbcAdminModerationRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcAdminModerationRepository(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -120,7 +120,7 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             item.setSummary(rs.getString("description"));
             item.setApprovalStatus(rs.getString("approval_status"));
             item.setAuthorName(rs.getString("author_name"));
-            item.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+            item.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             return item;
         }, status);
     }
@@ -134,20 +134,14 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             item.setCategory(rs.getString("category"));
             item.setApprovalStatus(rs.getString("approval_status"));
             item.setAuthorName(rs.getString("author_name"));
-            item.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+            item.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             return item;
         }, status);
     }
 
     @Override
     public Optional<UUID> findUserIdByEmail(String email) {
-        List<UUID> rows = jdbcTemplate.query(SELECT_USER_ID_BY_EMAIL_SQL,
-                (rs, rowNum) -> rs.getObject("id", UUID.class),
-                email);
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rows.getFirst());
+        return userRepository.findIdByEmail(email);
     }
 
     @Override
@@ -174,12 +168,5 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
                 targetId,
                 action,
                 comment);
-    }
-
-    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        return timestamp.toLocalDateTime();
     }
 }

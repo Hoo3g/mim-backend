@@ -1,39 +1,41 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.post;
 
 import com.hus.mim_backend.application.port.output.ApplicationPortalRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.dto.ApplicationResponse;
 import com.hus.mim_backend.application.post.dto.PendingApplicantResponse;
 import com.hus.mim_backend.application.post.dto.PendingApplicationResponse;
+import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
+import com.hus.mim_backend.infrastructure.adapter.persistence.PersistenceSqlFragments;
+import com.hus.mim_backend.shared.constants.RoleNames;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Component
 public class JdbcApplicationPortalRepository implements ApplicationPortalRepository {
-    private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
-            SELECT id FROM users WHERE email = ?
-            """;
 
+    /**
+     * Resolves a user's primary role by priority: ADMIN > LECTURER > COMPANY > STUDENT.
+     */
     private static final String SELECT_PRIMARY_ROLE_SQL = """
-            SELECT COALESCE(r.name, 'STUDENT')
+            SELECT COALESCE(r.name, '%s')
             FROM users u
             LEFT JOIN user_roles ur ON ur.user_id = u.id
             LEFT JOIN roles r ON r.id = ur.role_id
             WHERE u.id = ?
             ORDER BY CASE r.name
-                WHEN 'ADMIN' THEN 1
+                WHEN 'ADMIN'    THEN 1
                 WHEN 'LECTURER' THEN 2
-                WHEN 'COMPANY' THEN 3
-                WHEN 'STUDENT' THEN 4
+                WHEN 'COMPANY'  THEN 3
+                WHEN 'STUDENT'  THEN 4
                 ELSE 99
             END
             LIMIT 1
-            """;
+            """.formatted(RoleNames.STUDENT);
 
     private static final String SELECT_POST_TARGET_SQL = """
             SELECT id, author_id, post_type, approval_status, status
@@ -59,27 +61,19 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
                 cv_url,
                 created_at
             )
-            VALUES (uuid_generate_v4(), ?, ?, 'PENDING', ?, ?, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, 'PENDING', ?, ?, CURRENT_TIMESTAMP)
             RETURNING id, post_id, status, message, cv_url, created_at
             """;
 
     private static final String SELECT_STUDENT_DEFAULT_CV_SQL = """
-            SELECT cv_url
-            FROM students
-            WHERE id = ?
+            SELECT cv_url FROM students WHERE id = ?
             """;
 
     private static final String SELECT_PENDING_APPLICATIONS_SQL = """
             SELECT a.id AS application_id,
                    p.id AS post_id,
                    p.title AS post_title,
-                   COALESCE(
-                       NULLIF(c.name, ''),
-                       NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
-                       NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
-                       SPLIT_PART(COALESCE(u.email, ''), '@', 1),
-                       'Unknown'
-                   ) AS company_name,
+                   %s AS company_name,
                    p.post_type,
                    p.location,
                    a.status,
@@ -93,7 +87,7 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             WHERE a.applicant_id = ?
               AND a.status = 'PENDING'
             ORDER BY a.created_at DESC
-            """;
+            """.formatted(PersistenceSqlFragments.AUTHOR_NAME_SQL);
 
     private static final String SELECT_PENDING_APPLICANTS_BY_COMPANY_SQL = """
             SELECT a.id AS application_id,
@@ -117,37 +111,31 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             LEFT JOIN lecturers l ON l.id = a.applicant_id
             LEFT JOIN companies c ON c.id = a.applicant_id
             WHERE p.author_id = ?
-              AND p.post_type LIKE 'COMPANY_%'
+              AND p.post_type LIKE 'COMPANY_%%'
               AND a.status = 'PENDING'
             ORDER BY a.created_at DESC
             """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final UserRepository userRepository;
 
-    public JdbcApplicationPortalRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcApplicationPortalRepository(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
     public Optional<UUID> findUserIdByEmail(String email) {
-        List<UUID> ids = jdbcTemplate.query(SELECT_USER_ID_BY_EMAIL_SQL,
-                (rs, rowNum) -> rs.getObject("id", UUID.class),
-                email);
-        if (ids.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(ids.getFirst());
+        return userRepository.findIdByEmail(email);
     }
 
     @Override
     public Optional<String> findPrimaryRole(UUID userId) {
-        List<String> rows = jdbcTemplate.query(SELECT_PRIMARY_ROLE_SQL,
+        List<String> rows = jdbcTemplate.query(
+                SELECT_PRIMARY_ROLE_SQL,
                 (rs, rowNum) -> rs.getString(1),
                 userId);
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(rows.getFirst());
+        return rows.isEmpty() ? Optional.empty() : Optional.ofNullable(rows.getFirst());
     }
 
     @Override
@@ -160,10 +148,7 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
                         rs.getString("approval_status"),
                         rs.getString("status")),
                 postId);
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rows.getFirst());
+        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
     }
 
     @Override
@@ -174,6 +159,7 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
 
     @Override
     public ApplicationResponse createApplication(UUID postId, UUID applicantId, String message, String cvUrl) {
+        UUID applicationId = UUID.randomUUID();
         return jdbcTemplate.queryForObject(INSERT_APPLICATION_SQL, (rs, rowNum) -> {
             ApplicationResponse response = new ApplicationResponse();
             response.setId(rs.getObject("id", UUID.class));
@@ -182,20 +168,18 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             response.setStatus(rs.getString("status"));
             response.setMessage(rs.getString("message"));
             response.setCvUrl(rs.getString("cv_url"));
-            response.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+            response.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             return response;
-        }, postId, applicantId, message, cvUrl);
+        }, applicationId, postId, applicantId, message, cvUrl);
     }
 
     @Override
     public Optional<String> findStudentDefaultCv(UUID userId) {
-        List<String> rows = jdbcTemplate.query(SELECT_STUDENT_DEFAULT_CV_SQL,
+        List<String> rows = jdbcTemplate.query(
+                SELECT_STUDENT_DEFAULT_CV_SQL,
                 (rs, rowNum) -> rs.getString("cv_url"),
                 userId);
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(rows.getFirst());
+        return rows.isEmpty() ? Optional.empty() : Optional.ofNullable(rows.getFirst());
     }
 
     @Override
@@ -209,7 +193,7 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             item.setPostType(rs.getString("post_type"));
             item.setLocation(rs.getString("location"));
             item.setStatus(rs.getString("status"));
-            item.setAppliedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+            item.setAppliedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             return item;
         }, applicantId);
     }
@@ -225,15 +209,8 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             item.setApplicantName(rs.getString("applicant_name"));
             item.setMessage(rs.getString("message"));
             item.setCvUrl(rs.getString("cv_url"));
-            item.setAppliedAt(toLocalDateTime(rs.getTimestamp("created_at")));
+            item.setAppliedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             return item;
         }, companyId);
-    }
-
-    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        return timestamp.toLocalDateTime();
     }
 }

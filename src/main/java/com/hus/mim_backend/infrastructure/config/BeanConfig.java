@@ -28,6 +28,7 @@ import com.hus.mim_backend.application.port.output.LecturerRepository;
 import com.hus.mim_backend.application.port.output.ModerationLogRepository;
 import com.hus.mim_backend.application.port.output.NewsRepository;
 import com.hus.mim_backend.application.port.output.PasswordEncoder;
+import com.hus.mim_backend.application.port.output.PendingContentNotificationPort;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
 import com.hus.mim_backend.application.port.output.PostRepository;
 import com.hus.mim_backend.application.port.output.ProfilePortalRepository;
@@ -229,8 +230,9 @@ public class BeanConfig {
     @Bean
     @ConditionalOnBean(PostPortalRepository.class)
     public PostPortalService postPortalService(PostPortalRepository postPortalRepository,
-            UserRepository userRepository) {
-        return new PostPortalService(postPortalRepository, userRepository);
+            UserRepository userRepository,
+            PendingContentNotificationPort pendingContentNotificationPort) {
+        return new PostPortalService(postPortalRepository, userRepository, pendingContentNotificationPort);
     }
 
     @Bean
@@ -307,8 +309,9 @@ public class BeanConfig {
     @Bean
     @ConditionalOnBean(ResearchPortalRepository.class)
     public ResearchPortalServiceImpl researchPortalService(ResearchPortalRepository researchPortalRepository,
-            UserRepository userRepository) {
-        return new ResearchPortalServiceImpl(researchPortalRepository, userRepository);
+            UserRepository userRepository,
+            PendingContentNotificationPort pendingContentNotificationPort) {
+        return new ResearchPortalServiceImpl(researchPortalRepository, userRepository, pendingContentNotificationPort);
     }
 
     @Bean

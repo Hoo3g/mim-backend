@@ -1,7 +1,10 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.research;
 
 import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
+import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
+import com.hus.mim_backend.infrastructure.adapter.persistence.PersistenceSqlFragments;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -10,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,16 +25,7 @@ import java.util.UUID;
  */
 @Component
 public class JdbcResearchPortalRepository implements ResearchPortalRepository {
-    private static final String AUTHOR_NAME_SQL = """
-            COALESCE(
-                NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
-                NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
-                SPLIT_PART(COALESCE(us.email, ul.email, ''), '@', 1),
-                'Unknown'
-            )
-            """;
-
-    private static final String SELECT_PAPERS_BASE_SQL = """
+private static final String SELECT_PAPERS_BASE_SQL = """
             SELECT rp.id,
                    rp.title,
                    rp.abstract AS abstract_text,
@@ -89,7 +82,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             LEFT JOIN users ul ON ul.id = pa.lecturer_id
             WHERE pa.paper_id = ?
             ORDER BY pa.is_main_author DESC, pa.author_order ASC
-            """.formatted(AUTHOR_NAME_SQL);
+            """.formatted(PersistenceSqlFragments.RESEARCH_AUTHOR_NAME_SQL);
 
     private static final String SELECT_AUTHORS_BY_PAPER_IDS_SQL = """
             SELECT pa.paper_id,
@@ -104,11 +97,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             LEFT JOIN users ul ON ul.id = pa.lecturer_id
             WHERE pa.paper_id IN (:paperIds)
             ORDER BY pa.paper_id, pa.is_main_author DESC, pa.author_order ASC
-            """.formatted(AUTHOR_NAME_SQL);
-
-    private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
-            SELECT id FROM users WHERE email = ?
-            """;
+            """.formatted(PersistenceSqlFragments.RESEARCH_AUTHOR_NAME_SQL);
 
     private static final String SELECT_HAS_ROLE_SQL = """
             SELECT EXISTS (
@@ -227,8 +216,8 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         response.setBookmarkCount(rs.getInt("bookmark_count"));
         response.setApprovalStatus(rs.getString("approval_status"));
         response.setModerationComment(rs.getString("moderation_comment"));
-        response.setCreatedAt(rs.getTimestamp("created_at").toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-        response.setUpdatedAt(rs.getTimestamp("updated_at").toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
+        response.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
+        response.setUpdatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("updated_at")));
         return response;
     };
 
@@ -243,10 +232,12 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final UserRepository userRepository;
 
-    public JdbcResearchPortalRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public JdbcResearchPortalRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -268,14 +259,14 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         }
 
         if (normalizedResearchAreas != null && !normalizedResearchAreas.isEmpty()) {
-            sql.append("\n  AND ").append(normalizeSql("rp.research_area")).append(" IN (:researchAreas)");
+            sql.append("\n  AND ").append(PersistenceSqlFragments.normalizeSql("rp.research_area")).append(" IN (:researchAreas)");
             params.addValue("researchAreas", normalizedResearchAreas);
         }
 
         if (StringUtils.hasText(normalizedKeyword)) {
             params.addValue("keyword", "%" + normalizedKeyword + "%");
             sql.append("\n  AND (")
-                    .append(normalizeSql("CONCAT_WS(' ', rp.title, rp.abstract, rp.research_area, rp.journal_conference)"))
+                    .append(PersistenceSqlFragments.normalizeSql("CONCAT_WS(' ', rp.title, rp.abstract, rp.research_area, rp.journal_conference)"))
                     .append(" LIKE :keyword")
                     .append("\n    OR EXISTS (")
                     .append("\n        SELECT 1")
@@ -286,7 +277,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                     .append("\n        LEFT JOIN users ul ON ul.id = pa.lecturer_id")
                     .append("\n        WHERE pa.paper_id = rp.id")
                     .append("\n          AND ")
-                    .append(normalizeSql(AUTHOR_NAME_SQL))
+                    .append(PersistenceSqlFragments.normalizeSql(PersistenceSqlFragments.RESEARCH_AUTHOR_NAME_SQL))
                     .append(" LIKE :keyword")
                     .append("\n    )")
                     .append("\n  )");
@@ -358,13 +349,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
 
     @Override
     public Optional<UUID> findUserIdByEmail(String email) {
-        List<UUID> rows = jdbcTemplate.query(SELECT_USER_ID_BY_EMAIL_SQL,
-                (rs, rowNum) -> rs.getObject("id", UUID.class),
-                email);
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rows.getFirst());
+        return userRepository.findIdByEmail(email);
     }
 
     @Override
@@ -451,10 +436,5 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperId);
     }
 
-    private String normalizeSql(String expression) {
-        return "regexp_replace(unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
-    }
-
-    private record PaperAuthorRow(UUID paperId, PaperResponse.PaperAuthorResponse author) {
-    }
+    private record PaperAuthorRow(UUID paperId, PaperResponse.PaperAuthorResponse author) {}
 }

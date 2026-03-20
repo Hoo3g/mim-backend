@@ -1,21 +1,17 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.rbac;
 
 import com.hus.mim_backend.application.port.output.RbacRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.rbac.model.PermissionDefinition;
 import com.hus.mim_backend.application.rbac.model.RolePermissionRow;
 import com.hus.mim_backend.application.rbac.model.UserPermissionOverride;
 import com.hus.mim_backend.application.rbac.model.UserRbacAssignment;
+import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.sql.Array;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -190,10 +186,6 @@ public class JdbcRbacRepository implements RbacRepository {
             ORDER BY p.name
             """;
 
-    private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
-            SELECT id FROM users WHERE UPPER(email) = UPPER(?)
-            """;
-
     private static final String SELECT_USER_EXISTS_SQL = """
             SELECT EXISTS (SELECT 1 FROM users WHERE id = ?)
             """;
@@ -246,9 +238,11 @@ public class JdbcRbacRepository implements RbacRepository {
             """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final UserRepository userRepository;
 
-    public JdbcRbacRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcRbacRepository(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -318,8 +312,8 @@ public class JdbcRbacRepository implements RbacRepository {
             user.setEmail(rs.getString("email"));
             user.setDisplayName(rs.getString("display_name"));
             user.setAccountStatus(rs.getString("account_status"));
-            user.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
-            user.setRoles(toStringList(rs.getArray("roles")));
+            user.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
+            user.setRoles(JdbcMappingUtils.toSortedStringList(rs.getArray("roles")));
             return user;
         });
     }
@@ -332,8 +326,8 @@ public class JdbcRbacRepository implements RbacRepository {
             user.setEmail(rs.getString("email"));
             user.setDisplayName(rs.getString("display_name"));
             user.setAccountStatus(rs.getString("account_status"));
-            user.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
-            user.setRoles(toStringList(rs.getArray("roles")));
+            user.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
+            user.setRoles(JdbcMappingUtils.toSortedStringList(rs.getArray("roles")));
             return user;
         }, userId);
         if (rows.isEmpty()) {
@@ -357,13 +351,7 @@ public class JdbcRbacRepository implements RbacRepository {
         if (!StringUtils.hasText(email)) {
             return Optional.empty();
         }
-        List<UUID> rows = jdbcTemplate.query(SELECT_USER_ID_BY_EMAIL_SQL,
-                (rs, rowNum) -> rs.getObject("id", UUID.class),
-                email.trim());
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rows.getFirst());
+        return userRepository.findIdByEmail(email.trim());
     }
 
     @Override
@@ -463,28 +451,4 @@ public class JdbcRbacRepository implements RbacRepository {
         return normalized;
     }
 
-    private List<String> toStringList(Array sqlArray) {
-        if (sqlArray == null) {
-            return Collections.emptyList();
-        }
-        try {
-            Object value = sqlArray.getArray();
-            if (value instanceof String[] values) {
-                return Arrays.stream(values)
-                        .filter(StringUtils::hasText)
-                        .sorted()
-                        .toList();
-            }
-            return Collections.emptyList();
-        } catch (SQLException ex) {
-            return Collections.emptyList();
-        }
-    }
-
-    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        return timestamp.toLocalDateTime();
-    }
 }

@@ -3,18 +3,18 @@ package com.hus.mim_backend.infrastructure.adapter.persistence.post;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.PublicResearchPaperLinkResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
+import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
+import com.hus.mim_backend.infrastructure.adapter.persistence.PersistenceSqlFragments;
+import com.hus.mim_backend.shared.constants.RoleNames;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Array;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,27 +22,24 @@ import java.util.UUID;
 
 @Component
 public class JdbcPostPortalRepository implements PostPortalRepository {
-    private static final String SELECT_USER_ID_BY_EMAIL_SQL = """
-            SELECT id FROM users WHERE email = ?
-            """;
 
     private static final String SELECT_PRIMARY_ROLE_SQL = """
-            SELECT COALESCE(r.name, 'STUDENT')
+            SELECT COALESCE(r.name, '%s')
             FROM users u
             LEFT JOIN user_roles ur ON ur.user_id = u.id
             LEFT JOIN roles r ON r.id = ur.role_id
             WHERE u.id = ?
             ORDER BY CASE r.name
-                WHEN 'ADMIN' THEN 1
+                WHEN 'ADMIN'    THEN 1
                 WHEN 'LECTURER' THEN 2
-                WHEN 'COMPANY' THEN 3
-                WHEN 'STUDENT' THEN 4
+                WHEN 'COMPANY'  THEN 3
+                WHEN 'STUDENT'  THEN 4
                 ELSE 99
             END
             LIMIT 1
-            """;
+            """.formatted(RoleNames.STUDENT);
 
-    private static final String SELECT_POSTS_BASE_SQL = """
+private static final String SELECT_POSTS_BASE_SQL = """
             SELECT p.id,
                    p.author_id,
                    p.title,
@@ -64,14 +61,10 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
                    p.tags,
                    p.created_at,
                    p.updated_at,
-                   COALESCE(
-                     NULLIF(c.name, ''),
-                     NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
-                     NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
-                     SPLIT_PART(COALESCE(u.email, ''), '@', 1),
-                     'Unknown'
-                   ) AS author_name,
+                   %s AS author_name,
                    COALESCE(c.logo_url, l.avatar_url, u.avatar_url) AS author_avatar_url
+            """.formatted(PersistenceSqlFragments.AUTHOR_NAME_SQL)
+            + """
             FROM posts p
             LEFT JOIN users u ON u.id = p.author_id
             LEFT JOIN companies c ON c.id = p.author_id
@@ -130,7 +123,7 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
                 updated_at
             )
             VALUES (
-                uuid_generate_v4(),
+                ?,
                 ?,
                 ?,
                 ?,
@@ -161,28 +154,28 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
 
     private static final String UPDATE_POST_BY_AUTHOR_SQL = """
             UPDATE posts
-            SET title = ?,
-                description = ?,
-                requirements = ?,
-                benefits = ?,
-                achievements = ?,
-                post_type = ?,
-                job_type = ?,
+            SET title          = ?,
+                description    = ?,
+                requirements   = ?,
+                benefits       = ?,
+                achievements   = ?,
+                post_type      = ?,
+                job_type       = ?,
                 student_cv_url = ?,
-                display_info = CAST(? AS jsonb),
-                location = ?,
-                salary_range = ?,
-                status = ?,
-                contact_email = ?,
-                contact_phone = ?,
-                tags = CASE
+                display_info   = CAST(? AS jsonb),
+                location       = ?,
+                salary_range   = ?,
+                status         = ?,
+                contact_email  = ?,
+                contact_phone  = ?,
+                tags           = CASE
                     WHEN ? IS NULL OR BTRIM(?) = '' THEN NULL
                     ELSE string_to_array(?, ',')
                 END,
-                approval_status = 'PENDING',
-                moderator_id = NULL,
+                approval_status    = 'PENDING',
+                moderator_id       = NULL,
                 moderation_comment = NULL,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at         = CURRENT_TIMESTAMP
             WHERE id = ? AND author_id = ?
             """;
 
@@ -206,26 +199,20 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
             ORDER BY rp.created_at DESC
             """;
 
-    private static final TypeReference<Map<String, Object>> DISPLAY_INFO_TYPE = new TypeReference<>() {
-    };
+    private static final TypeReference<Map<String, Object>> DISPLAY_INFO_TYPE = new TypeReference<>() {};
 
     private final JdbcTemplate jdbcTemplate;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public JdbcPostPortalRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcPostPortalRepository(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
     public Optional<UUID> findUserIdByEmail(String email) {
-        List<UUID> rows = jdbcTemplate.query(
-                SELECT_USER_ID_BY_EMAIL_SQL,
-                (rs, rowNum) -> rs.getObject("id", UUID.class),
-                email);
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rows.getFirst());
+        return userRepository.findIdByEmail(email);
     }
 
     @Override
@@ -296,9 +283,9 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
     @Transactional
     @Override
     public UUID createPost(UUID authorId, UpsertRecruitmentPostRequest request, String displayInfoJson, String tagsCsv) {
-        UUID postId = jdbcTemplate.queryForObject(
-                INSERT_POST_SQL,
-                UUID.class,
+        UUID postId = UUID.randomUUID();
+        jdbcTemplate.update(INSERT_POST_SQL,
+                postId,
                 authorId,
                 request.getTitle(),
                 request.getDescription(),
@@ -359,7 +346,6 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
         if (paperIds == null || paperIds.isEmpty()) {
             return;
         }
-
         for (UUID paperId : paperIds) {
             jdbcTemplate.update(INSERT_LINKED_RESEARCH_SQL, postId, paperId);
         }
@@ -387,9 +373,9 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
         item.setModerationComment(rs.getString("moderation_comment"));
         item.setContactEmail(rs.getString("contact_email"));
         item.setContactPhone(rs.getString("contact_phone"));
-        item.setTags(toStringList(rs.getArray("tags")));
-        item.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
-        item.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
+        item.setTags(JdbcMappingUtils.toStringList(rs.getArray("tags")));
+        item.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
+        item.setUpdatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("updated_at")));
         return item;
     }
 
@@ -412,27 +398,5 @@ public class JdbcPostPortalRepository implements PostPortalRepository {
         } catch (Exception ex) {
             return null;
         }
-    }
-
-    private List<String> toStringList(Array sqlArray) {
-        if (sqlArray == null) {
-            return Collections.emptyList();
-        }
-        try {
-            Object arrayObject = sqlArray.getArray();
-            if (arrayObject instanceof String[] values) {
-                return List.of(values);
-            }
-            return Collections.emptyList();
-        } catch (SQLException ex) {
-            return Collections.emptyList();
-        }
-    }
-
-    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        return timestamp.toLocalDateTime();
     }
 }

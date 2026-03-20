@@ -34,6 +34,8 @@ public class ApiEndpoints {
     public static final String ADMIN_RESEARCH_CATEGORIES = ADMIN + "/research-categories";
     public static final String ADMIN_SPECIALIZATIONS = ADMIN + "/specializations";
     public static final String ADMIN_NEWS = ADMIN + "/news";
+    public static final String ADMIN_NOTIFICATIONS = ADMIN + "/notifications";
+    public static final String NOTIFICATIONS_STREAM = "/stream";
 
     // Research Endpoints
     public static final String RESEARCH = API_V1 + "/research-papers";

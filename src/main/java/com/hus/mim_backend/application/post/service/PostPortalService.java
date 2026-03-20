@@ -2,6 +2,7 @@ package com.hus.mim_backend.application.post.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hus.mim_backend.application.port.output.PendingContentNotificationPort;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
@@ -11,6 +12,8 @@ import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.infrastructure.config.CacheNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
@@ -25,6 +28,8 @@ import java.util.Set;
 import java.util.UUID;
 
 public class PostPortalService implements PostPortalUseCase {
+    private static final Logger log = LoggerFactory.getLogger(PostPortalService.class);
+
     private static final Set<String> ALLOWED_POST_TYPES = Set.of(
             "STUDENT_SEEKING_JOB",
             "STUDENT_SEEKING_INTERNSHIP",
@@ -36,11 +41,15 @@ public class PostPortalService implements PostPortalUseCase {
 
     private final PostPortalRepository repository;
     private final UserRepository userRepository;
+    private final PendingContentNotificationPort pendingContentNotificationPort;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public PostPortalService(PostPortalRepository repository, UserRepository userRepository) {
+    public PostPortalService(PostPortalRepository repository,
+            UserRepository userRepository,
+            PendingContentNotificationPort pendingContentNotificationPort) {
         this.repository = repository;
         this.userRepository = userRepository;
+        this.pendingContentNotificationPort = pendingContentNotificationPort;
     }
 
     @Override
@@ -83,6 +92,13 @@ public class PostPortalService implements PostPortalUseCase {
         String tagsCsv = toCsvOrNull(request.getTags());
         UUID createdId = repository.createPost(userId, request, displayInfoJson, tagsCsv);
         repository.replaceLinkedResearchPapers(createdId, extractPaperIds(request.getResearchPaperLinks()));
+
+        // Notify admins about new pending content
+        try {
+            pendingContentNotificationPort.notifyNewPendingContent("POST", request.getTitle(), email);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to send pending content notification for post {}: {}", createdId, ex.getMessage());
+        }
 
         return repository.findPostByIdForAuthor(createdId, userId)
                 .orElseThrow(() -> new DomainException("Unable to load created post"));

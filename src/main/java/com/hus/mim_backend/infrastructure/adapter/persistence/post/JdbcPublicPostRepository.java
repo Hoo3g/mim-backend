@@ -5,18 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hus.mim_backend.application.port.output.PublicPostRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.PublicResearchPaperLinkResponse;
+import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
+import com.hus.mim_backend.infrastructure.adapter.persistence.PersistenceSqlFragments;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.sql.Array;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,15 +26,6 @@ import java.util.UUID;
  */
 @Component
 public class JdbcPublicPostRepository implements PublicPostRepository {
-    private static final String AUTHOR_NAME_SQL = """
-            COALESCE(
-              NULLIF(c.name, ''),
-              NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
-              NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
-              SPLIT_PART(COALESCE(u.email, ''), '@', 1),
-              'Unknown'
-            )
-            """;
 
     private static final String SELECT_POSTS_BASE_SQL = """
             SELECT p.id,
@@ -67,7 +56,7 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
             LEFT JOIN companies c ON c.id = p.author_id
             LEFT JOIN students s ON s.id = p.author_id
             LEFT JOIN lecturers l ON l.id = p.author_id
-            """.formatted(AUTHOR_NAME_SQL);
+            """.formatted(PersistenceSqlFragments.AUTHOR_NAME_SQL);
 
     private static final String SELECT_ALL_APPROVED_POSTS_SQL = SELECT_POSTS_BASE_SQL + """
             WHERE p.approval_status = 'APPROVED'
@@ -94,8 +83,7 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
             ORDER BY ppl.post_id, rp.created_at DESC
             """;
 
-    private static final TypeReference<Map<String, Object>> DISPLAY_INFO_TYPE = new TypeReference<>() {
-    };
+    private static final TypeReference<Map<String, Object>> DISPLAY_INFO_TYPE = new TypeReference<>() {};
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -109,9 +97,9 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
     @Override
     public List<PublicPostResponse> findAllApprovedPosts() {
         List<PublicPostResponse> posts = jdbcTemplate.query(SELECT_ALL_APPROVED_POSTS_SQL, (rs, rowNum) -> mapPost(rs));
-        Map<UUID, List<PublicResearchPaperLinkResponse>> linkedPapersByPostId = fetchLinkedPapersByPostIds(
+        Map<UUID, List<PublicResearchPaperLinkResponse>> linked = fetchLinkedPapersByPostIds(
                 posts.stream().map(PublicPostResponse::getId).toList());
-        posts.forEach((post) -> post.setResearchPaperLinks(linkedPapersByPostId.getOrDefault(post.getId(), List.of())));
+        posts.forEach(post -> post.setResearchPaperLinks(linked.getOrDefault(post.getId(), List.of())));
         return posts;
     }
 
@@ -136,36 +124,33 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
                     .append("\n      WHERE ");
 
             List<String> clauses = new ArrayList<>();
-            for (int index = 0; index < specializationCandidates.size(); index++) {
-                String parameterName = "specialization" + index;
-                String likeParameterName = parameterName + "Like";
-                clauses.add("(" + normalizeSql("tag") + " = :" + parameterName
-                        + " OR " + normalizeSql("tag") + " LIKE :" + likeParameterName + ")");
-                params.addValue(parameterName, specializationCandidates.get(index));
-                params.addValue(likeParameterName, "%" + specializationCandidates.get(index) + "%");
+            for (int i = 0; i < specializationCandidates.size(); i++) {
+                String paramName = "specialization" + i;
+                String likeParamName = paramName + "Like";
+                clauses.add("(" + PersistenceSqlFragments.normalizeSql("tag") + " = :" + paramName
+                        + " OR " + PersistenceSqlFragments.normalizeSql("tag") + " LIKE :" + likeParamName + ")");
+                params.addValue(paramName, specializationCandidates.get(i));
+                params.addValue(likeParamName, "%" + specializationCandidates.get(i) + "%");
             }
-
-            sql.append(String.join(" OR ", clauses))
-                    .append("\n  )");
+            sql.append(String.join(" OR ", clauses)).append("\n  )");
         }
 
         if (StringUtils.hasText(normalizedKeyword)) {
             params.addValue("keyword", "%" + normalizedKeyword + "%");
             sql.append("\n  AND ")
-                    .append(normalizeSql("CONCAT_WS(' ', p.title, p.description, " + AUTHOR_NAME_SQL
-                            + ", p.requirements, p.achievements, p.benefits)"))
+                    .append(PersistenceSqlFragments.normalizeSql(
+                            "CONCAT_WS(' ', p.title, p.description, " + PersistenceSqlFragments.AUTHOR_NAME_SQL
+                                    + ", p.requirements, p.achievements, p.benefits)"))
                     .append(" LIKE :keyword");
         }
 
         sql.append("\nORDER BY p.created_at DESC");
 
         List<PublicPostResponse> posts = namedParameterJdbcTemplate.query(
-                sql.toString(),
-                params,
-                (rs, rowNum) -> mapPost(rs));
-        Map<UUID, List<PublicResearchPaperLinkResponse>> linkedPapersByPostId = fetchLinkedPapersByPostIds(
+                sql.toString(), params, (rs, rowNum) -> mapPost(rs));
+        Map<UUID, List<PublicResearchPaperLinkResponse>> linked = fetchLinkedPapersByPostIds(
                 posts.stream().map(PublicPostResponse::getId).toList());
-        posts.forEach((post) -> post.setResearchPaperLinks(linkedPapersByPostId.getOrDefault(post.getId(), List.of())));
+        posts.forEach(post -> post.setResearchPaperLinks(linked.getOrDefault(post.getId(), List.of())));
         return posts;
     }
 
@@ -206,9 +191,9 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
         response.setModerationComment(rs.getString("moderation_comment"));
         response.setContactEmail(rs.getString("contact_email"));
         response.setContactPhone(rs.getString("contact_phone"));
-        response.setTags(toStringList(rs.getArray("tags")));
-        response.setCreatedAt(toLocalDateTime(rs.getTimestamp("created_at")));
-        response.setUpdatedAt(toLocalDateTime(rs.getTimestamp("updated_at")));
+        response.setTags(JdbcMappingUtils.toStringList(rs.getArray("tags")));
+        response.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
+        response.setUpdatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("updated_at")));
         return response;
     }
 
@@ -238,11 +223,9 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
                     return new PostPaperLinkRow(rs.getObject("post_id", UUID.class), item);
                 });
 
-        Map<UUID, List<PublicResearchPaperLinkResponse>> linkedPapersByPostId = new LinkedHashMap<>();
-        rows.forEach((row) -> linkedPapersByPostId
-                .computeIfAbsent(row.postId(), ignored -> new ArrayList<>())
-                .add(row.paper()));
-        return linkedPapersByPostId;
+        Map<UUID, List<PublicResearchPaperLinkResponse>> result = new LinkedHashMap<>();
+        rows.forEach(row -> result.computeIfAbsent(row.postId(), ignored -> new ArrayList<>()).add(row.paper()));
+        return result;
     }
 
     private Map<String, Object> parseDisplayInfo(String rawDisplayInfo) {
@@ -256,32 +239,5 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
         }
     }
 
-    private List<String> toStringList(Array sqlArray) {
-        if (sqlArray == null) {
-            return Collections.emptyList();
-        }
-        try {
-            Object value = sqlArray.getArray();
-            if (value instanceof String[] values) {
-                return List.of(values);
-            }
-            return Collections.emptyList();
-        } catch (SQLException ex) {
-            return Collections.emptyList();
-        }
-    }
-
-    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        return timestamp.toLocalDateTime();
-    }
-
-    private String normalizeSql(String expression) {
-        return "regexp_replace(unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
-    }
-
-    private record PostPaperLinkRow(UUID postId, PublicResearchPaperLinkResponse paper) {
-    }
+    private record PostPaperLinkRow(UUID postId, PublicResearchPaperLinkResponse paper) {}
 }

@@ -34,11 +34,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String header = request.getHeader("Authorization");
+        String token = null;
 
         if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
+            token = header.substring(7);
+        } else if (request.getRequestURI().contains("/notifications/stream")) {
+            // SSE endpoints: EventSource API cannot set custom headers,
+            // so accept JWT from query param as fallback.
+            token = request.getParameter("token");
+        }
 
-            if (tokenProvider.validateToken(token)) {
+        if (token != null && tokenProvider.validateToken(token)) {
                 String email = tokenProvider.getEmailFromToken(token);
                 Set<String> roles = tokenProvider.getRolesFromToken(token);
                 Set<String> permissions = Set.of();
@@ -64,7 +70,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
         }
 
         filterChain.doFilter(request, response);

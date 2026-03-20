@@ -1,4 +1,4 @@
-package com.hus.mim_backend.infrastructure.adapter.web;
+package com.hus.mim_backend.infrastructure.config;
 
 import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.domain.shared.DomainException;
@@ -11,9 +11,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Global exception handler — converts all exceptions to consistent ApiResponse
- * JSON.
+ * Global exception handler — converts all exceptions to consistent ApiResponse JSON.
  * Avoids leaking stack traces or Spring HTML error pages to the client.
+ *
+ * <p>Placed in {@code infrastructure.config} (not in a specific adapter package)
+ * because it applies horizontally across all web adapters.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -85,8 +87,6 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
-        // Log the real exception server-side (replace with proper logger when
-        // available)
         ex.printStackTrace();
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

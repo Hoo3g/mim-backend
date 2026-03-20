@@ -4,6 +4,7 @@ import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.Email;
 import com.hus.mim_backend.domain.auth.model.User;
+import com.hus.mim_backend.shared.constants.RoleNames;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -90,6 +91,14 @@ public class UserJpaAdapter implements UserRepository {
         jpaRepository.deleteById(id);
     }
 
+    @Override
+    public Optional<UUID> findIdByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+        return jpaRepository.findIdByEmail(email.trim());
+    }
+
     private Set<RoleEntity> resolveRoleEntities(Set<String> roleNames) {
         if (roleNames == null || roleNames.isEmpty()) {
             return Set.of();
@@ -122,13 +131,6 @@ public class UserJpaAdapter implements UserRepository {
     }
 
     private int rolePriority(String roleName) {
-        String normalized = roleName == null ? "" : roleName.trim().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "ADMIN" -> 1;
-            case "LECTURER" -> 2;
-            case "COMPANY" -> 3;
-            case "STUDENT" -> 4;
-            default -> 99;
-        };
+        return RoleNames.priority(roleName);
     }
 }

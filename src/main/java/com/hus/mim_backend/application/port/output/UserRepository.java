@@ -15,6 +15,12 @@ public interface UserRepository {
 
     Optional<User> findByEmail(Email email);
 
+    /**
+     * Lightweight lookup: returns only the user ID for a given email string.
+     * Avoids loading the full User entity when only the ID is needed.
+     */
+    Optional<UUID> findIdByEmail(String email);
+
     Optional<User> findByStudentCode(String studentCode);
 
     User save(User user);
