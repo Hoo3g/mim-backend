@@ -59,15 +59,16 @@ public class AdminNotificationSseEmitter {
     /**
      * Broadcast a pending-content notification to all connected admin clients.
      */
-    public void broadcast(String contentType, String contentTitle, String authorEmail) {
+    public void broadcast(String contentType, String contentId, String contentTitle, String authorEmail) {
         if (emitters.isEmpty()) {
             return;
         }
 
         String jsonData = """
-                {"contentType":"%s","contentTitle":"%s","authorEmail":"%s","timestamp":%d}"""
+                {"contentType":"%s","contentId":"%s","contentTitle":"%s","authorEmail":"%s","timestamp":%d}"""
                 .formatted(
                         escapeJson(contentType),
+                        escapeJson(contentId),
                         escapeJson(contentTitle),
                         escapeJson(authorEmail),
                         System.currentTimeMillis());

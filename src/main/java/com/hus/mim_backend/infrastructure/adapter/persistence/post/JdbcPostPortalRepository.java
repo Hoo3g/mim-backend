@@ -141,15 +141,14 @@ private static final String SELECT_POSTS_BASE_SQL = """
                 ?,
                 ?,
                 CASE
-                    WHEN ? IS NULL OR BTRIM(?) = '' THEN NULL
-                    ELSE string_to_array(?, ',')
+                    WHEN NULLIF(BTRIM(CAST(? AS text)), '') IS NULL THEN NULL
+                    ELSE string_to_array(CAST(? AS text), ',')
                 END,
                 NULL,
                 NULL,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
             )
-            RETURNING id
             """;
 
     private static final String UPDATE_POST_BY_AUTHOR_SQL = """
@@ -169,13 +168,18 @@ private static final String SELECT_POSTS_BASE_SQL = """
                 contact_email  = ?,
                 contact_phone  = ?,
                 tags           = CASE
-                    WHEN ? IS NULL OR BTRIM(?) = '' THEN NULL
-                    ELSE string_to_array(?, ',')
+                    WHEN NULLIF(BTRIM(CAST(? AS text)), '') IS NULL THEN NULL
+                    ELSE string_to_array(CAST(? AS text), ',')
                 END,
                 approval_status    = 'PENDING',
                 moderator_id       = NULL,
                 moderation_comment = NULL,
                 updated_at         = CURRENT_TIMESTAMP
+            WHERE id = ? AND author_id = ?
+            """;
+
+    private static final String DELETE_POST_BY_AUTHOR_SQL = """
+            DELETE FROM posts
             WHERE id = ? AND author_id = ?
             """;
 
@@ -302,7 +306,6 @@ private static final String SELECT_POSTS_BASE_SQL = """
                 request.getContactEmail(),
                 request.getContactPhone(),
                 tagsCsv,
-                tagsCsv,
                 tagsCsv);
         return postId;
     }
@@ -333,10 +336,15 @@ private static final String SELECT_POSTS_BASE_SQL = """
                 request.getContactPhone(),
                 tagsCsv,
                 tagsCsv,
-                tagsCsv,
                 postId,
                 authorId);
         return affected > 0;
+    }
+
+    @Transactional
+    @Override
+    public boolean deletePostByAuthor(UUID postId, UUID authorId) {
+        return jdbcTemplate.update(DELETE_POST_BY_AUTHOR_SQL, postId, authorId) > 0;
     }
 
     @Transactional

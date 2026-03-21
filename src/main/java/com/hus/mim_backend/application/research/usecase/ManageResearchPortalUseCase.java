@@ -32,6 +32,8 @@ public interface ManageResearchPortalUseCase {
 
     UpdatePaperResult updatePaper(String currentUserEmail, UUID paperId, UpsertPaperRequest request);
 
+    boolean deletePaper(String currentUserEmail, UUID paperId);
+
     enum UpdatePaperResultType {
         SUCCESS,
         FORBIDDEN,

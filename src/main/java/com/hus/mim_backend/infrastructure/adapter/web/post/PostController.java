@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -112,6 +113,18 @@ public class PostController {
         String email = resolveAuthenticatedEmail(authentication);
         PublicPostResponse response = postPortalUseCase.updatePost(email, postId, request);
         return ResponseEntity.ok(ApiResponse.success(response, "Update post successfully"));
+    }
+
+    @DeleteMapping(ApiEndpoints.POST_BY_ID)
+    public ResponseEntity<ApiResponse<Void>> deletePost(
+            @PathVariable UUID postId,
+            Authentication authentication) {
+        String email = resolveAuthenticatedEmail(authentication);
+        if (!postPortalUseCase.deletePost(email, postId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Post not found", "POST_NOT_FOUND"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, "Delete post successfully"));
     }
 
     private String resolveAuthenticatedEmail(Authentication authentication) {

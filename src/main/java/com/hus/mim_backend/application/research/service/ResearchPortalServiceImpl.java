@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
@@ -168,15 +170,27 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 .orElseThrow(() -> new DomainException("Research paper not found"));
         loadAuthors(response);
 
-        // Notify admins about new pending content
-        try {
-            pendingContentNotificationPort.notifyNewPendingContent(
-                    "PAPER", request.getTitle(), currentUserEmail);
-        } catch (RuntimeException ex) {
-            log.warn("Failed to send pending content notification for paper {}: {}", paperId, ex.getMessage());
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sendPendingNotification(request.getTitle(), currentUserEmail, paperId);
+                }
+            });
+        } else {
+            sendPendingNotification(request.getTitle(), currentUserEmail, paperId);
         }
 
         return response;
+    }
+
+    private void sendPendingNotification(String title, String authorEmail, UUID paperId) {
+        try {
+            pendingContentNotificationPort.notifyNewPendingContent(
+                    "PAPER", paperId.toString(), title, authorEmail);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to send pending content notification for paper {}: {}", paperId, ex.getMessage());
+        }
     }
 
     @Override
@@ -211,6 +225,18 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 .orElseThrow(() -> new DomainException("Research paper not found"));
         loadAuthors(response);
         return UpdatePaperResult.success(response);
+    }
+
+    @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
+    })
+    public boolean deletePaper(String currentUserEmail, UUID paperId) {
+        UUID userId = resolveCurrentUserId(currentUserEmail);
+        return repository.deletePaperByOwner(paperId, userId);
     }
 
     private UUID resolveCurrentUserId(String email) {

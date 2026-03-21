@@ -10,6 +10,7 @@ public class ProfileMeResponse {
     private String role;
     private String accountStatus;
     private String avatarUrl;
+    private List<String> permissions;
     private StudentProfile student;
     private CompanyProfile company;
     private LecturerProfile lecturer;
@@ -52,6 +53,14 @@ public class ProfileMeResponse {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public List<String> getPermissions() {
+        return permissions;
+    }
+
+    public void setPermissions(List<String> permissions) {
+        this.permissions = permissions;
     }
 
     public StudentProfile getStudent() {

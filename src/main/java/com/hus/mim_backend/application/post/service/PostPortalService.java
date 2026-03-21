@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -93,15 +95,27 @@ public class PostPortalService implements PostPortalUseCase {
         UUID createdId = repository.createPost(userId, request, displayInfoJson, tagsCsv);
         repository.replaceLinkedResearchPapers(createdId, extractPaperIds(request.getResearchPaperLinks()));
 
-        // Notify admins about new pending content
-        try {
-            pendingContentNotificationPort.notifyNewPendingContent("POST", request.getTitle(), email);
-        } catch (RuntimeException ex) {
-            log.warn("Failed to send pending content notification for post {}: {}", createdId, ex.getMessage());
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sendPendingNotification(request.getTitle(), email, createdId);
+                }
+            });
+        } else {
+            sendPendingNotification(request.getTitle(), email, createdId);
         }
 
         return repository.findPostByIdForAuthor(createdId, userId)
                 .orElseThrow(() -> new DomainException("Unable to load created post"));
+    }
+
+    private void sendPendingNotification(String title, String authorEmail, UUID postId) {
+        try {
+            pendingContentNotificationPort.notifyNewPendingContent("POST", postId.toString(), title, authorEmail);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to send pending content notification for post {}: {}", postId, ex.getMessage());
+        }
     }
 
     @Override
@@ -129,6 +143,16 @@ public class PostPortalService implements PostPortalUseCase {
         repository.replaceLinkedResearchPapers(postId, extractPaperIds(request.getResearchPaperLinks()));
         return repository.findPostByIdForAuthor(postId, userId)
                 .orElseThrow(() -> new DomainException("Unable to load updated post"));
+    }
+
+    @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
+    })
+    public boolean deletePost(String email, UUID postId) {
+        UUID userId = resolveUserId(email);
+        return repository.deletePostByAuthor(postId, userId);
     }
 
     private UUID resolveUserId(String email) {

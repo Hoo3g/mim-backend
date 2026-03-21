@@ -69,7 +69,7 @@ public class AdminModerationController {
         boolean ok = adminModerationUseCase.moderatePost(moderatorEmail, postId, request);
         if (!ok) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Post not found", "POST_NOT_FOUND"));
+                    .body(ApiResponse.error("Post not found or no longer pending moderation", "POST_NOT_FOUND"));
         }
         return ResponseEntity.ok(ApiResponse.success(null, "Moderate post successfully"));
     }
@@ -84,7 +84,7 @@ public class AdminModerationController {
         boolean ok = adminModerationUseCase.moderatePaper(moderatorEmail, paperId, request);
         if (!ok) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Paper not found", "PAPER_NOT_FOUND"));
+                    .body(ApiResponse.error("Paper not found or no longer pending moderation", "PAPER_NOT_FOUND"));
         }
         return ResponseEntity.ok(ApiResponse.success(null, "Moderate paper successfully"));
     }

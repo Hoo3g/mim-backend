@@ -29,5 +29,7 @@ public interface PostPortalRepository {
                                String displayInfoJson,
                                String tagsCsv);
 
+    boolean deletePostByAuthor(UUID postId, UUID authorId);
+
     void replaceLinkedResearchPapers(UUID postId, List<UUID> paperIds);
 }

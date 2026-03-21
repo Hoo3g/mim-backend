@@ -20,4 +20,6 @@ public interface PostPortalUseCase {
     PublicPostResponse createPost(String email, UpsertRecruitmentPostRequest request);
 
     PublicPostResponse updatePost(String email, UUID postId, UpsertRecruitmentPostRequest request);
+
+    boolean deletePost(String email, UUID postId);
 }

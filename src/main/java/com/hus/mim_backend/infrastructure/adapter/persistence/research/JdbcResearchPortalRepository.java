@@ -187,6 +187,17 @@ private static final String SELECT_PAPERS_BASE_SQL = """
             WHERE id = ?
             """;
 
+    private static final String DELETE_PAPER_BY_OWNER_SQL = """
+            DELETE FROM research_papers rp
+            WHERE rp.id = ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM paper_authors pa
+                  WHERE pa.paper_id = rp.id
+                    AND (pa.student_id = ? OR pa.lecturer_id = ?)
+              )
+            """;
+
     private static final String INCREMENT_VIEW_COUNT_SQL = """
             UPDATE research_papers
             SET view_count = COALESCE(view_count, 0) + 1
@@ -434,6 +445,12 @@ private static final String SELECT_PAPERS_BASE_SQL = """
     @Override
     public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea) {
         return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperId);
+    }
+
+    @Override
+    @Transactional
+    public boolean deletePaperByOwner(UUID paperId, UUID userId) {
+        return jdbcTemplate.update(DELETE_PAPER_BY_OWNER_SQL, paperId, userId, userId) > 0;
     }
 
     private record PaperAuthorRow(UUID paperId, PaperResponse.PaperAuthorResponse author) {}

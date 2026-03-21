@@ -43,10 +43,10 @@ public class SmtpPendingContentNotificationAdapter implements PendingContentNoti
 
     @Override
     @Async
-    public void notifyNewPendingContent(String contentType, String contentTitle, String authorEmail) {
+    public void notifyNewPendingContent(String contentType, String contentId, String contentTitle, String authorEmail) {
         // Always broadcast SSE regardless of email settings
         try {
-            sseEmitter.broadcast(contentType, contentTitle, authorEmail);
+            sseEmitter.broadcast(contentType, contentId, contentTitle, authorEmail);
         } catch (RuntimeException ex) {
             log.warn("Failed to broadcast SSE notification for {} '{}'", contentType, contentTitle, ex);
         }

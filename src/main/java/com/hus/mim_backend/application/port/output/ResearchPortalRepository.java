@@ -56,4 +56,6 @@ public interface ResearchPortalRepository {
     boolean isOwner(UUID paperId, UUID userId);
 
     int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea);
+
+    boolean deletePaperByOwner(UUID paperId, UUID userId);
 }

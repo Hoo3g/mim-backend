@@ -424,11 +424,14 @@ public class BeanConfig {
     }
 
     @Bean
-    @ConditionalOnBean({ ProfilePortalRepository.class, SpecializationRepository.class, UserRepository.class })
+    @ConditionalOnBean({ ProfilePortalRepository.class, SpecializationRepository.class, UserRepository.class,
+            ManageRbacUseCase.class })
     public ProfilePortalService profilePortalService(ProfilePortalRepository profilePortalRepository,
             SpecializationRepository specializationRepository,
-            UserRepository userRepository) {
-        return new ProfilePortalService(profilePortalRepository, specializationRepository, userRepository);
+            UserRepository userRepository,
+            ManageRbacUseCase manageRbacUseCase) {
+        return new ProfilePortalService(profilePortalRepository, specializationRepository, userRepository,
+                manageRbacUseCase);
     }
 
     @Bean

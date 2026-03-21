@@ -11,9 +11,12 @@ import com.hus.mim_backend.application.profile.dto.UpdateCompanyProfileRequest;
 import com.hus.mim_backend.application.profile.dto.UpdateLecturerProfileRequest;
 import com.hus.mim_backend.application.profile.dto.UpdateStudentProfileRequest;
 import com.hus.mim_backend.application.profile.usecase.ProfilePortalUseCase;
+import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public class ProfilePortalService implements ProfilePortalUseCase {
@@ -25,19 +28,23 @@ public class ProfilePortalService implements ProfilePortalUseCase {
     private final ProfilePortalRepository repository;
     private final SpecializationRepository specializationRepository;
     private final UserRepository userRepository;
+    private final ManageRbacUseCase manageRbacUseCase;
 
     public ProfilePortalService(ProfilePortalRepository repository,
             SpecializationRepository specializationRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ManageRbacUseCase manageRbacUseCase) {
         this.repository = repository;
         this.specializationRepository = specializationRepository;
         this.userRepository = userRepository;
+        this.manageRbacUseCase = manageRbacUseCase;
     }
 
     @Override
     public ProfileMeResponse getMyProfile(String email) {
         ProfileMeResponse profile = resolveProfile(email);
         profile.setRole(normalizeRole(profile.getRole()));
+        profile.setPermissions(resolveEffectivePermissions(profile.getUserId()));
         return profile;
     }
 
@@ -179,6 +186,22 @@ public class ProfilePortalService implements ProfilePortalUseCase {
             return normalized;
         }
         return ROLE_STUDENT;
+    }
+
+    private List<String> resolveEffectivePermissions(UUID userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        try {
+            return manageRbacUseCase.getEffectivePermissionsByUserId(userId).stream()
+                    .filter(StringUtils::hasText)
+                    .map(permission -> permission.trim().toUpperCase(Locale.ROOT))
+                    .distinct()
+                    .sorted()
+                    .toList();
+        } catch (RuntimeException ex) {
+            return List.of();
+        }
     }
 
     private void validateStudentMajor(UpdateStudentProfileRequest request) {
