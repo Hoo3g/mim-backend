@@ -16,6 +16,7 @@ public class User {
     // Getters and Setters
     private UUID id;
     private Email email;
+    private String fullName;
     private String password; // Encrypted password
     private String avatarUrl;
     private AccountStatus status;
@@ -63,6 +64,11 @@ public class User {
 
         public UserBuilder email(Email email) {
             user.setEmail(email);
+            return this;
+        }
+
+        public UserBuilder fullName(String fullName) {
+            user.setFullName(fullName);
             return this;
         }
 

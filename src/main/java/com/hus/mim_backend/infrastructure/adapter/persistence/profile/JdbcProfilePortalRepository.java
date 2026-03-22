@@ -23,6 +23,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
     private static final String SELECT_PROFILE_BASE_SQL = """
             SELECT u.id,
                    u.email,
+                   u.full_name,
                    u.avatar_url,
                    u.account_status,
                    COALESCE((
@@ -535,6 +536,7 @@ public class JdbcProfilePortalRepository implements ProfilePortalRepository {
             ProfileMeResponse response = new ProfileMeResponse();
             response.setUserId(rs.getObject("id", UUID.class));
             response.setEmail(rs.getString("email"));
+            response.setFullName(rs.getString("full_name"));
             response.setAvatarUrl(rs.getString("avatar_url"));
             response.setAccountStatus(rs.getString("account_status"));
             response.setRole(rs.getString("primary_role"));

@@ -223,7 +223,37 @@ class ProfilePortalServiceTest {
         }
 
         @Override
+        public boolean hasStudentRegistration(UUID userId) {
+            return false;
+        }
+
+        @Override
+        public boolean hasLecturerRegistration(UUID userId) {
+            return false;
+        }
+
+        @Override
+        public boolean hasCompanyRegistration(UUID userId) {
+            return false;
+        }
+
+        @Override
+        public void upsertStudentRegistration(UUID userId, String firstName, String lastName, String major) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void upsertStudentCode(UUID userId, String studentCode) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void upsertLecturerRegistration(UUID userId, String firstName, String lastName, String title) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void upsertCompanyRegistration(UUID userId, String companyName, String website) {
             throw new UnsupportedOperationException();
         }
 

@@ -12,4 +12,10 @@ import lombok.Setter;
 public class GoogleLoginRequest {
     private String idToken;
     private String userType;
+    private String fullName;
+    private String studentId;
+    private String studentFaculty;
+    private String title;
+    private String companyName;
+    private String companyWebsite;
 }

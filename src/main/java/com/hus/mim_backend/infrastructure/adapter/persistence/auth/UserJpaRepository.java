@@ -39,7 +39,32 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, UUID> {
             """, nativeQuery = true)
     boolean existsByStudentCode(@Param("studentCode") String studentCode);
 
+    @Query(value = "SELECT EXISTS(SELECT 1 FROM students WHERE id = :userId)", nativeQuery = true)
+    boolean hasStudentRegistration(@Param("userId") UUID userId);
+
+    @Query(value = "SELECT EXISTS(SELECT 1 FROM lecturers WHERE id = :userId)", nativeQuery = true)
+    boolean hasLecturerRegistration(@Param("userId") UUID userId);
+
+    @Query(value = "SELECT EXISTS(SELECT 1 FROM companies WHERE id = :userId)", nativeQuery = true)
+    boolean hasCompanyRegistration(@Param("userId") UUID userId);
+
     List<UserEntity> findByStatus(AccountStatus status);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+            INSERT INTO students (id, first_name, last_name, major, updated_at)
+            VALUES (:userId, :firstName, :lastName, :major, CURRENT_TIMESTAMP)
+            ON CONFLICT (id) DO UPDATE
+            SET first_name = EXCLUDED.first_name,
+                last_name = EXCLUDED.last_name,
+                major = COALESCE(EXCLUDED.major, students.major),
+                updated_at = CURRENT_TIMESTAMP
+            """, nativeQuery = true)
+    void upsertStudentRegistration(@Param("userId") UUID userId,
+            @Param("firstName") String firstName,
+            @Param("lastName") String lastName,
+            @Param("major") String major);
 
     @Modifying
     @Transactional
@@ -51,4 +76,34 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, UUID> {
                 updated_at = CURRENT_TIMESTAMP
             """, nativeQuery = true)
     void upsertStudentCode(@Param("userId") UUID userId, @Param("studentCode") String studentCode);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+            INSERT INTO lecturers (id, first_name, last_name, title, updated_at)
+            VALUES (:userId, :firstName, :lastName, :title, CURRENT_TIMESTAMP)
+            ON CONFLICT (id) DO UPDATE
+            SET first_name = EXCLUDED.first_name,
+                last_name = EXCLUDED.last_name,
+                title = EXCLUDED.title,
+                updated_at = CURRENT_TIMESTAMP
+            """, nativeQuery = true)
+    void upsertLecturerRegistration(@Param("userId") UUID userId,
+            @Param("firstName") String firstName,
+            @Param("lastName") String lastName,
+            @Param("title") String title);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+            INSERT INTO companies (id, name, website, updated_at)
+            VALUES (:userId, :companyName, :website, CURRENT_TIMESTAMP)
+            ON CONFLICT (id) DO UPDATE
+            SET name = EXCLUDED.name,
+                website = COALESCE(EXCLUDED.website, companies.website),
+                updated_at = CURRENT_TIMESTAMP
+            """, nativeQuery = true)
+    void upsertCompanyRegistration(@Param("userId") UUID userId,
+            @Param("companyName") String companyName,
+            @Param("website") String website);
 }

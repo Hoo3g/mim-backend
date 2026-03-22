@@ -7,6 +7,7 @@ import java.util.UUID;
 public class ProfileMeResponse {
     private UUID userId;
     private String email;
+    private String fullName;
     private String role;
     private String accountStatus;
     private String avatarUrl;
@@ -29,6 +30,14 @@ public class ProfileMeResponse {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getRole() {

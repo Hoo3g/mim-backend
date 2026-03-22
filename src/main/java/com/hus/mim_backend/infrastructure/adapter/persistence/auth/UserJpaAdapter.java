@@ -64,8 +64,38 @@ public class UserJpaAdapter implements UserRepository {
     }
 
     @Override
+    public boolean hasStudentRegistration(UUID userId) {
+        return userId != null && jpaRepository.hasStudentRegistration(userId);
+    }
+
+    @Override
+    public boolean hasLecturerRegistration(UUID userId) {
+        return userId != null && jpaRepository.hasLecturerRegistration(userId);
+    }
+
+    @Override
+    public boolean hasCompanyRegistration(UUID userId) {
+        return userId != null && jpaRepository.hasCompanyRegistration(userId);
+    }
+
+    @Override
+    public void upsertStudentRegistration(UUID userId, String firstName, String lastName, String major) {
+        jpaRepository.upsertStudentRegistration(userId, firstName, lastName, major);
+    }
+
+    @Override
     public void upsertStudentCode(UUID userId, String studentCode) {
         jpaRepository.upsertStudentCode(userId, studentCode);
+    }
+
+    @Override
+    public void upsertLecturerRegistration(UUID userId, String firstName, String lastName, String title) {
+        jpaRepository.upsertLecturerRegistration(userId, firstName, lastName, title);
+    }
+
+    @Override
+    public void upsertCompanyRegistration(UUID userId, String companyName, String website) {
+        jpaRepository.upsertCompanyRegistration(userId, companyName, website);
     }
 
     @Override

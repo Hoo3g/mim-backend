@@ -29,7 +29,19 @@ public interface UserRepository {
 
     boolean existsByStudentCode(String studentCode);
 
+    boolean hasStudentRegistration(UUID userId);
+
+    boolean hasLecturerRegistration(UUID userId);
+
+    boolean hasCompanyRegistration(UUID userId);
+
+    void upsertStudentRegistration(UUID userId, String firstName, String lastName, String major);
+
     void upsertStudentCode(UUID userId, String studentCode);
+
+    void upsertLecturerRegistration(UUID userId, String firstName, String lastName, String title);
+
+    void upsertCompanyRegistration(UUID userId, String companyName, String website);
 
     List<User> findByAccountStatus(String status);
 

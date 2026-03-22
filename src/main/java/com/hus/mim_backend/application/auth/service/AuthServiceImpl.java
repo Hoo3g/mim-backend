@@ -28,6 +28,8 @@ import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.domain.shared.DomainException;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +45,7 @@ public class AuthServiceImpl
 
     private static final Set<String> ALLOWED_USER_TYPES = Set.of("STUDENT", "LECTURER", "COMPANY", "ADMIN");
     private static final Pattern STUDENT_CODE_PATTERN = Pattern.compile("^[A-Z0-9]{6,20}$");
+    private static final String GOOGLE_ONBOARDING_REQUIRED = "GOOGLE_ONBOARDING_REQUIRED";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -97,6 +100,9 @@ public class AuthServiceImpl
         Email email = new Email(request.getEmail());
         String normalizedUserType = normalizeUserType(request.getUserType());
         String normalizedStudentCode = null;
+        LecturerRegistration lecturerRegistration = null;
+        String companyRegistrationName = null;
+        String registrationDisplayName = normalizeText(request.getFullName());
 
         if (userRepository.existsByEmail(email)) {
             throw new DomainException("Email already in use");
@@ -107,11 +113,17 @@ public class AuthServiceImpl
             if (userRepository.existsByStudentCode(normalizedStudentCode)) {
                 throw new DomainException("Student code already in use");
             }
+        } else if ("LECTURER".equals(normalizedUserType)) {
+            lecturerRegistration = validateLecturerRegistration(request.getFullName(), request.getTitle());
+        } else if ("COMPANY".equals(normalizedUserType)) {
+            companyRegistrationName = validateCompanyRegistration(request.getCompanyName(), request.getFullName());
+            registrationDisplayName = companyRegistrationName;
         }
 
         String encryptedPassword = passwordEncoder.encode(request.getPassword());
 
         User newUser = User.createNew(email, encryptedPassword, normalizedUserType, AccountStatus.PENDING);
+        newUser.setFullName(registrationDisplayName);
 
         User savedUser = userRepository.save(newUser);
 
@@ -121,6 +133,18 @@ public class AuthServiceImpl
             } catch (RuntimeException ex) {
                 throw new DomainException("Student code already in use");
             }
+        }
+
+        if (lecturerRegistration != null) {
+            userRepository.upsertLecturerRegistration(
+                    savedUser.getId(),
+                    lecturerRegistration.firstName(),
+                    lecturerRegistration.lastName(),
+                    lecturerRegistration.title());
+        }
+
+        if (companyRegistrationName != null) {
+            userRepository.upsertCompanyRegistration(savedUser.getId(), companyRegistrationName, null);
         }
 
         issueEmailVerification(savedUser);
@@ -178,16 +202,23 @@ public class AuthServiceImpl
 
         GoogleUserInfo googleUser = googleTokenVerifier.verifyIdToken(request.getIdToken());
         Email email = new Email(googleUser.email());
-        String userType = normalizeUserType(request.getUserType());
-
         User user = userRepository.findByEmail(email)
-                .orElseGet(() -> createUserFromGoogle(email, userType, googleUser.pictureUrl()));
+                .map(existingUser -> completeGoogleOnboardingIfNeeded(existingUser, googleUser, request))
+                .orElseGet(() -> createGoogleOnboardedUser(email, googleUser, request));
 
         // Always sync avatar from Google when claim exists to avoid stale/broken URL.
         if (googleUser.pictureUrl() != null && !googleUser.pictureUrl().isBlank()
                 && !googleUser.pictureUrl().equals(user.getAvatarUrl())) {
             user.setAvatarUrl(googleUser.pictureUrl());
             user = userRepository.save(user);
+        }
+
+        if (normalizeText(user.getFullName()) == null) {
+            String resolvedFullName = normalizeText(googleUser.name());
+            if (resolvedFullName != null) {
+                user.setFullName(resolvedFullName);
+                user = userRepository.save(user);
+            }
         }
 
         if (googleUser.emailVerified() && user.getStatus() != AccountStatus.APPROVED) {
@@ -251,11 +282,99 @@ public class AuthServiceImpl
         issueEmailVerification(user);
     }
 
-    private User createUserFromGoogle(Email email, String userType, String pictureUrl) {
+    private User createGoogleOnboardedUser(Email email, GoogleUserInfo googleUser, GoogleLoginRequest request) {
+        GoogleOnboardingDetails details = resolveGoogleOnboardingDetails(request, null);
+        User user = createUserFromGoogle(email, details.userType(), pictureUrlFromGoogle(googleUser), details.fullName());
+        upsertRegistrationProfile(user.getId(), details);
+        return user;
+    }
+
+    private User createUserFromGoogle(Email email, String userType, String pictureUrl, String fullName) {
         String randomPassword = passwordEncoder.encode(UUID.randomUUID().toString());
         User user = User.createNew(email, randomPassword, userType, AccountStatus.APPROVED);
+        user.setFullName(fullName);
         user.setAvatarUrl(pictureUrl);
         return userRepository.save(user);
+    }
+
+    private User completeGoogleOnboardingIfNeeded(User user, GoogleUserInfo googleUser, GoogleLoginRequest request) {
+        if (hasCompletedRegistrationProfile(user)) {
+            return user;
+        }
+
+        GoogleOnboardingDetails details = resolveGoogleOnboardingDetails(request, user.getId());
+
+        user.setRoles(Set.of(details.userType()));
+        user.setFullName(details.fullName());
+        if (pictureUrlFromGoogle(googleUser) != null && !pictureUrlFromGoogle(googleUser).isBlank()) {
+            user.setAvatarUrl(pictureUrlFromGoogle(googleUser));
+        }
+        user.setUpdatedAt(LocalDateTime.now());
+
+        User savedUser = userRepository.save(user);
+        upsertRegistrationProfile(savedUser.getId(), details);
+        return savedUser;
+    }
+
+    private boolean hasCompletedRegistrationProfile(User user) {
+        if (user == null || user.getId() == null) {
+            return false;
+        }
+
+        String currentRole = primaryRole(user);
+        if (currentRole == null) {
+            return false;
+        }
+
+        return switch (currentRole) {
+            case "STUDENT" -> userRepository.hasStudentRegistration(user.getId());
+            case "LECTURER" -> userRepository.hasLecturerRegistration(user.getId());
+            case "COMPANY" -> userRepository.hasCompanyRegistration(user.getId());
+            default -> true;
+        };
+    }
+
+    private String primaryRole(User user) {
+        if (user == null || user.getRoles() == null || user.getRoles().isEmpty()) {
+            return null;
+        }
+        return user.getRoles().stream()
+                .filter(role -> role != null && !role.isBlank())
+                .map(role -> role.trim().toUpperCase())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void upsertRegistrationProfile(UUID userId, GoogleOnboardingDetails details) {
+        if (userId == null || details == null) {
+            return;
+        }
+
+        switch (details.userType()) {
+            case "STUDENT" -> {
+                String[] splitName = splitFullName(details.fullName());
+                try {
+                    userRepository.upsertStudentCode(userId, details.studentCode());
+                } catch (RuntimeException ex) {
+                    throw new DomainException("Student code already in use");
+                }
+                userRepository.upsertStudentRegistration(userId, splitName[0], splitName[1], details.studentFaculty());
+            }
+            case "LECTURER" -> {
+                LecturerRegistration lecturer = details.lecturerRegistration();
+                userRepository.upsertLecturerRegistration(
+                        userId,
+                        lecturer.firstName(),
+                        lecturer.lastName(),
+                        lecturer.title());
+            }
+            case "COMPANY" -> userRepository.upsertCompanyRegistration(
+                    userId,
+                    details.companyName(),
+                    details.companyWebsite());
+            default -> {
+            }
+        }
     }
 
     private void ensureUserCanAuthenticate(User user) {
@@ -337,6 +456,148 @@ public class AuthServiceImpl
         return normalized;
     }
 
+    private String normalizeExplicitUserType(String userType) {
+        if (userType == null || userType.isBlank()) {
+            return null;
+        }
+        return normalizeUserType(userType);
+    }
+
+    private GoogleOnboardingDetails resolveGoogleOnboardingDetails(GoogleLoginRequest request, UUID currentUserId) {
+        String userType = normalizeExplicitUserType(request == null ? null : request.getUserType());
+        if (userType == null) {
+            throw new DomainException(GOOGLE_ONBOARDING_REQUIRED);
+        }
+
+        return switch (userType) {
+            case "STUDENT" -> buildStudentOnboardingDetails(request, currentUserId);
+            case "LECTURER" -> buildLecturerOnboardingDetails(request);
+            case "COMPANY" -> buildCompanyOnboardingDetails(request);
+            default -> throw new DomainException("Unsupported user type: " + userType);
+        };
+    }
+
+    private GoogleOnboardingDetails buildStudentOnboardingDetails(GoogleLoginRequest request, UUID currentUserId) {
+        String fullName = normalizeText(request == null ? null : request.getFullName());
+        if (fullName == null) {
+            throw new DomainException("Full name is required for student registration");
+        }
+
+        String studentCode = validateStudentCode(request == null ? null : request.getStudentId(), true);
+        ensureStudentCodeAvailable(studentCode, currentUserId);
+
+        String studentFaculty = normalizeText(request == null ? null : request.getStudentFaculty());
+        if (studentFaculty == null) {
+            throw new DomainException("Faculty is required for student registration");
+        }
+
+        return new GoogleOnboardingDetails("STUDENT", fullName, studentCode, studentFaculty, null, null, null);
+    }
+
+    private GoogleOnboardingDetails buildLecturerOnboardingDetails(GoogleLoginRequest request) {
+        LecturerRegistration lecturerRegistration = validateLecturerRegistration(
+                request == null ? null : request.getFullName(),
+                request == null ? null : request.getTitle());
+        String fullName = normalizeText(request == null ? null : request.getFullName());
+        return new GoogleOnboardingDetails("LECTURER", fullName, null, null, lecturerRegistration, null, null);
+    }
+
+    private GoogleOnboardingDetails buildCompanyOnboardingDetails(GoogleLoginRequest request) {
+        String representativeName = normalizeText(request == null ? null : request.getFullName());
+        if (representativeName == null) {
+            throw new DomainException("Representative name is required for company registration");
+        }
+
+        String companyName = normalizeText(request == null ? null : request.getCompanyName());
+        if (companyName == null) {
+            throw new DomainException("Company name is required for company registration");
+        }
+
+        String companyWebsite = validateCompanyWebsite(request == null ? null : request.getCompanyWebsite());
+        return new GoogleOnboardingDetails("COMPANY", representativeName, null, null, null, companyName, companyWebsite);
+    }
+
+    private void ensureStudentCodeAvailable(String studentCode, UUID currentUserId) {
+        userRepository.findByStudentCode(studentCode).ifPresent(existingUser -> {
+            if (currentUserId == null || !currentUserId.equals(existingUser.getId())) {
+                throw new DomainException("Student code already in use");
+            }
+        });
+    }
+
+    private LecturerRegistration validateLecturerRegistration(String fullName, String title) {
+        String normalizedFullName = normalizeText(fullName);
+        if (normalizedFullName == null) {
+            throw new DomainException("Full name is required for lecturer registration");
+        }
+
+        String normalizedTitle = normalizeText(title);
+        if (normalizedTitle == null) {
+            throw new DomainException("Title is required for lecturer registration");
+        }
+
+        String[] splitName = splitFullName(normalizedFullName);
+        return new LecturerRegistration(splitName[0], splitName[1], normalizedTitle);
+    }
+
+    private String validateCompanyRegistration(String companyName, String fullNameFallback) {
+        String normalizedCompanyName = normalizeText(companyName);
+        if (normalizedCompanyName != null) {
+            return normalizedCompanyName;
+        }
+
+        String fallback = normalizeText(fullNameFallback);
+        if (fallback == null) {
+            throw new DomainException("Company name is required for company registration");
+        }
+        return fallback;
+    }
+
+    private String validateCompanyWebsite(String website) {
+        String normalized = normalizeText(website);
+        if (normalized == null) {
+            throw new DomainException("Company website is required for company registration");
+        }
+
+        String candidate = normalized.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://.*$")
+                ? normalized
+                : "https://" + normalized;
+        try {
+            URI uri = new URI(candidate);
+            String host = uri.getHost();
+            if (host == null || host.isBlank()) {
+                throw new DomainException("Company website is invalid");
+            }
+            // Keep the original user input (trimmed) instead of forcing a scheme prefix.
+            return normalized;
+        } catch (URISyntaxException ex) {
+            throw new DomainException("Company website is invalid");
+        }
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim().replaceAll("\\s+", " ");
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String pictureUrlFromGoogle(GoogleUserInfo googleUser) {
+        return googleUser == null ? null : googleUser.pictureUrl();
+    }
+
+    private String[] splitFullName(String fullName) {
+        String[] parts = fullName.split(" ");
+        if (parts.length == 1) {
+            return new String[] { parts[0], "" };
+        }
+
+        String lastName = parts[parts.length - 1];
+        String firstName = String.join(" ", java.util.Arrays.copyOf(parts, parts.length - 1));
+        return new String[] { firstName, lastName };
+    }
+
     private void issueEmailVerification(User user) {
         if (user == null || user.getId() == null || user.getEmail() == null) {
             return;
@@ -352,5 +613,18 @@ public class AuthServiceImpl
                 LocalDateTime.now().plusMinutes(emailVerificationTokenTtlMinutes));
         emailVerificationTokenRepository.save(verificationToken);
         emailVerificationNotificationPort.sendVerificationEmail(user.getEmail().value(), token);
+    }
+
+    private record LecturerRegistration(String firstName, String lastName, String title) {
+    }
+
+    private record GoogleOnboardingDetails(
+            String userType,
+            String fullName,
+            String studentCode,
+            String studentFaculty,
+            LecturerRegistration lecturerRegistration,
+            String companyName,
+            String companyWebsite) {
     }
 }

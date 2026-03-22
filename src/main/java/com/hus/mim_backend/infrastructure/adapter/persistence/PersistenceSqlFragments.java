@@ -19,6 +19,7 @@ public final class PersistenceSqlFragments {
               NULLIF(c.name, ''),
               NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
               NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
+              NULLIF(u.full_name, ''),
               SPLIT_PART(COALESCE(u.email, ''), '@', 1),
               'Unknown'
             )
@@ -32,6 +33,7 @@ public final class PersistenceSqlFragments {
             COALESCE(
               NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
               NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
+              NULLIF(COALESCE(us.full_name, ul.full_name), ''),
               SPLIT_PART(COALESCE(us.email, ul.email, ''), '@', 1),
               'Unknown'
             )

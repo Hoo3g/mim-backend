@@ -15,6 +15,7 @@ public class UserResponse {
     // Getters and Setters
     private String id;
     private String email;
+    private String fullName;
     private String status;
     private String avatarUrl;
     private Set<String> roles;
@@ -27,6 +28,7 @@ public class UserResponse {
         UserResponse response = new UserResponse();
         response.setId(user.getId().toString());
         response.setEmail(user.getEmail().value());
+        response.setFullName(user.getFullName());
         response.setStatus(user.getStatus().name());
         response.setAvatarUrl(user.getAvatarUrl());
         response.setRoles(user.getRoles());
@@ -48,6 +50,11 @@ public class UserResponse {
 
         public UserResponseBuilder email(String email) {
             response.setEmail(email);
+            return this;
+        }
+
+        public UserResponseBuilder fullName(String fullName) {
+            response.setFullName(fullName);
             return this;
         }
 

@@ -38,6 +38,9 @@ public class UserEntity {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(name = "full_name")
+    private String fullName;
+
     @Column(nullable = false)
     private String password;
 
@@ -65,6 +68,7 @@ public class UserEntity {
         return User.builder()
                 .id(this.id)
                 .email(new Email(this.email))
+                .fullName(this.fullName)
                 .password(this.password)
                 .avatarUrl(this.avatarUrl)
                 .status(this.status)
@@ -84,6 +88,7 @@ public class UserEntity {
         UserEntity entity = new UserEntity();
         entity.setId(user.getId() == null ? UUID.randomUUID() : user.getId());
         entity.setEmail(user.getEmail().value());
+        entity.setFullName(user.getFullName());
         entity.setPassword(user.getPassword());
         entity.setAvatarUrl(user.getAvatarUrl());
         entity.setStatus(user.getStatus());
