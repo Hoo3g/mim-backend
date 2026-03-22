@@ -8,6 +8,8 @@ public class PendingApplicantResponse {
     private UUID postId;
     private String postTitle;
     private UUID applicantId;
+    private UUID applicantPostId;
+    private String status;
     private String applicantName;
     private String message;
     private String cvUrl;
@@ -43,6 +45,22 @@ public class PendingApplicantResponse {
 
     public void setApplicantId(UUID applicantId) {
         this.applicantId = applicantId;
+    }
+
+    public UUID getApplicantPostId() {
+        return applicantPostId;
+    }
+
+    public void setApplicantPostId(UUID applicantPostId) {
+        this.applicantPostId = applicantPostId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getApplicantName() {

@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,12 +58,19 @@ public class PostApplicationController {
     public ResponseEntity<ApiResponse<List<PendingApplicantResponse>>> getPendingApplicants(
             @RequestParam(required = false, defaultValue = "PENDING") String status,
             Authentication authentication) {
-        if (!"PENDING".equalsIgnoreCase(status)) {
-            throw new DomainException("Only PENDING status is supported in this endpoint");
-        }
         String email = resolveAuthenticatedEmail(authentication);
-        List<PendingApplicantResponse> data = applicationPortalUseCase.getPendingApplicantsForMyCompanyPosts(email);
+        List<PendingApplicantResponse> data = applicationPortalUseCase.getApplicantsForMyCompanyPosts(email, status);
         return ResponseEntity.ok(ApiResponse.success(data, "Get pending applicants successfully"));
+    }
+
+    @PatchMapping(ApiEndpoints.POST_APPLICATION_STATUS)
+    public ResponseEntity<ApiResponse<Boolean>> updateApplicationStatus(
+            @PathVariable UUID applicationId,
+            @RequestParam String status,
+            Authentication authentication) {
+        String email = resolveAuthenticatedEmail(authentication);
+        boolean updated = applicationPortalUseCase.updateApplicationStatusForMyCompanyPost(email, applicationId, status);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Update applicant status successfully"));
     }
 
     private String resolveAuthenticatedEmail(Authentication authentication) {

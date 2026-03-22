@@ -10,6 +10,7 @@ import com.hus.mim_backend.domain.shared.DomainException;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public class ApplicationPortalService implements ApplicationPortalUseCase {
@@ -64,13 +65,29 @@ public class ApplicationPortalService implements ApplicationPortalUseCase {
     }
 
     @Override
-    public List<PendingApplicantResponse> getPendingApplicantsForMyCompanyPosts(String email) {
+    public List<PendingApplicantResponse> getApplicantsForMyCompanyPosts(String email, String status) {
         UUID companyId = resolveUserId(email);
         String role = resolvePrimaryRole(companyId);
         if (!ROLE_COMPANY.equals(role)) {
             throw new DomainException("Only company accounts can view this list");
         }
-        return repository.findPendingApplicantsByCompany(companyId);
+        return repository.findApplicantsByCompany(companyId, normalizeApplicantListStatus(status));
+    }
+
+    @Override
+    public boolean updateApplicationStatusForMyCompanyPost(String email, UUID applicationId, String status) {
+        UUID companyId = resolveUserId(email);
+        String role = resolvePrimaryRole(companyId);
+        if (!ROLE_COMPANY.equals(role)) {
+            throw new DomainException("Only company accounts can update applicant status");
+        }
+
+        String normalizedStatus = normalizeCompanyApplicantStatus(status);
+        boolean updated = repository.updateApplicationStatusForCompany(applicationId, companyId, normalizedStatus);
+        if (!updated) {
+            throw new DomainException("Application not found or already processed");
+        }
+        return true;
     }
 
     private UUID resolveUserId(String email) {
@@ -106,5 +123,30 @@ public class ApplicationPortalService implements ApplicationPortalUseCase {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeCompanyApplicantStatus(String value) {
+        if (!StringUtils.hasText(value)) {
+            throw new DomainException("status is required");
+        }
+
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "MARK", "MARKED", "REVIEW", "REVIEWED" -> "REVIEWED";
+            case "REJECT", "REJECTED" -> "REJECTED";
+            default -> throw new DomainException("Unsupported applicant status. Use REVIEWED or REJECTED.");
+        };
+    }
+
+    private String normalizeApplicantListStatus(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "PENDING";
+        }
+
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "PENDING", "REVIEWED", "REJECTED" -> normalized;
+            default -> throw new DomainException("Unsupported applicant list status. Use PENDING, REVIEWED, or REJECTED.");
+        };
     }
 }

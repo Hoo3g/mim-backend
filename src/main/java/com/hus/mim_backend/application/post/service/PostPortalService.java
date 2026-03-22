@@ -10,6 +10,7 @@ import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
 import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
 import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.User;
+import com.hus.mim_backend.domain.shared.ApprovalStatus;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.infrastructure.config.CacheNames;
 import org.slf4j.Logger;
@@ -89,20 +90,22 @@ public class PostPortalService implements PostPortalUseCase {
         ensureVerifiedPublisher(userId);
         String role = resolveRole(userId);
         normalizeAndValidate(request, role);
+        String targetApprovalStatus = resolveCreateApprovalStatus(role);
 
         String displayInfoJson = toJsonOrNull(request.getDisplayInfo());
         String tagsCsv = toCsvOrNull(request.getTags());
-        UUID createdId = repository.createPost(userId, request, displayInfoJson, tagsCsv);
+        UUID createdId = repository.createPost(userId, request, displayInfoJson, tagsCsv, targetApprovalStatus);
         repository.replaceLinkedResearchPapers(createdId, extractPaperIds(request.getResearchPaperLinks()));
 
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+        if (ApprovalStatus.PENDING.name().equals(targetApprovalStatus)
+                && TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
                     sendPendingNotification(request.getTitle(), email, createdId);
                 }
             });
-        } else {
+        } else if (ApprovalStatus.PENDING.name().equals(targetApprovalStatus)) {
             sendPendingNotification(request.getTitle(), email, createdId);
         }
 
@@ -132,10 +135,19 @@ public class PostPortalService implements PostPortalUseCase {
         ensureVerifiedPublisher(userId);
         String role = resolveRole(userId);
         normalizeAndValidate(request, role);
+        PublicPostResponse existingPost = repository.findPostByIdForAuthor(postId, userId)
+                .orElseThrow(() -> new DomainException("Post not found or you do not have permission to update"));
+        String targetApprovalStatus = resolveUpdateApprovalStatus(role, existingPost.getApprovalStatus());
 
         String displayInfoJson = toJsonOrNull(request.getDisplayInfo());
         String tagsCsv = toCsvOrNull(request.getTags());
-        boolean updated = repository.updatePostByAuthor(postId, userId, request, displayInfoJson, tagsCsv);
+        boolean updated = repository.updatePostByAuthor(
+                postId,
+                userId,
+                request,
+                displayInfoJson,
+                tagsCsv,
+                targetApprovalStatus);
         if (!updated) {
             throw new DomainException("Post not found or you do not have permission to update");
         }
@@ -175,6 +187,23 @@ public class PostPortalService implements PostPortalUseCase {
         if (user.getStatus() != AccountStatus.APPROVED) {
             throw new DomainException("Email chưa được xác thực. Tài khoản chỉ được xem nội dung cho tới khi hoàn tất xác thực email.");
         }
+    }
+
+    private String resolveCreateApprovalStatus(String role) {
+        if ("COMPANY".equals(role)) {
+            return ApprovalStatus.APPROVED.name();
+        }
+        return ApprovalStatus.PENDING.name();
+    }
+
+    private String resolveUpdateApprovalStatus(String role, String currentApprovalStatus) {
+        if ("COMPANY".equals(role)) {
+            return ApprovalStatus.APPROVED.name();
+        }
+        if (ApprovalStatus.APPROVED.name().equalsIgnoreCase(trimToNull(currentApprovalStatus))) {
+            return ApprovalStatus.APPROVED.name();
+        }
+        return ApprovalStatus.PENDING.name();
     }
 
     private void normalizeAndValidate(UpsertRecruitmentPostRequest request, String role) {

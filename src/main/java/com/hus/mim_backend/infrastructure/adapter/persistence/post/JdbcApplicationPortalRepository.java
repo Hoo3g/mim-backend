@@ -89,11 +89,13 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             ORDER BY a.created_at DESC
             """.formatted(PersistenceSqlFragments.AUTHOR_NAME_SQL);
 
-    private static final String SELECT_PENDING_APPLICANTS_BY_COMPANY_SQL = """
+    private static final String SELECT_APPLICANTS_BY_COMPANY_SQL = """
             SELECT a.id AS application_id,
                    p.id AS post_id,
                    p.title AS post_title,
                    a.applicant_id,
+                   applicant_post.id AS applicant_post_id,
+                   a.status,
                    COALESCE(
                        NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
                        NULLIF(TRIM(COALESCE(l.first_name, '') || ' ' || COALESCE(l.last_name, '')), ''),
@@ -110,10 +112,31 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             LEFT JOIN students s ON s.id = a.applicant_id
             LEFT JOIN lecturers l ON l.id = a.applicant_id
             LEFT JOIN companies c ON c.id = a.applicant_id
+            LEFT JOIN LATERAL (
+                SELECT candidate.id
+                FROM posts candidate
+                WHERE candidate.author_id = a.applicant_id
+                  AND candidate.post_type LIKE 'STUDENT_%%'
+                  AND candidate.approval_status = 'APPROVED'
+                  AND candidate.status = 'OPEN'
+                ORDER BY candidate.updated_at DESC NULLS LAST, candidate.created_at DESC
+                LIMIT 1
+            ) applicant_post ON TRUE
             WHERE p.author_id = ?
               AND p.post_type LIKE 'COMPANY_%%'
-              AND a.status = 'PENDING'
+              AND a.status = ?
             ORDER BY a.created_at DESC
+            """;
+
+    private static final String UPDATE_APPLICATION_STATUS_BY_COMPANY_SQL = """
+            UPDATE applications a
+            SET status = ?
+            FROM posts p
+            WHERE a.id = ?
+              AND p.id = a.post_id
+              AND p.author_id = ?
+              AND p.post_type LIKE 'COMPANY_%%'
+              AND a.status = 'PENDING'
             """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -199,18 +222,25 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
     }
 
     @Override
-    public List<PendingApplicantResponse> findPendingApplicantsByCompany(UUID companyId) {
-        return jdbcTemplate.query(SELECT_PENDING_APPLICANTS_BY_COMPANY_SQL, (rs, rowNum) -> {
+    public List<PendingApplicantResponse> findApplicantsByCompany(UUID companyId, String status) {
+        return jdbcTemplate.query(SELECT_APPLICANTS_BY_COMPANY_SQL, (rs, rowNum) -> {
             PendingApplicantResponse item = new PendingApplicantResponse();
             item.setApplicationId(rs.getObject("application_id", UUID.class));
             item.setPostId(rs.getObject("post_id", UUID.class));
             item.setPostTitle(rs.getString("post_title"));
             item.setApplicantId(rs.getObject("applicant_id", UUID.class));
+            item.setApplicantPostId(rs.getObject("applicant_post_id", UUID.class));
+            item.setStatus(rs.getString("status"));
             item.setApplicantName(rs.getString("applicant_name"));
             item.setMessage(rs.getString("message"));
             item.setCvUrl(rs.getString("cv_url"));
             item.setAppliedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             return item;
-        }, companyId);
+        }, companyId, status);
+    }
+
+    @Override
+    public boolean updateApplicationStatusForCompany(UUID applicationId, UUID companyId, String status) {
+        return jdbcTemplate.update(UPDATE_APPLICATION_STATUS_BY_COMPANY_SQL, status, applicationId, companyId) > 0;
     }
 }

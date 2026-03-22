@@ -13,5 +13,11 @@ public interface ApplicationPortalUseCase {
 
     List<PendingApplicationResponse> getMyPendingApplications(String email);
 
-    List<PendingApplicantResponse> getPendingApplicantsForMyCompanyPosts(String email);
+    List<PendingApplicantResponse> getApplicantsForMyCompanyPosts(String email, String status);
+
+    default List<PendingApplicantResponse> getPendingApplicantsForMyCompanyPosts(String email) {
+        return getApplicantsForMyCompanyPosts(email, "PENDING");
+    }
+
+    boolean updateApplicationStatusForMyCompanyPost(String email, UUID applicationId, String status);
 }

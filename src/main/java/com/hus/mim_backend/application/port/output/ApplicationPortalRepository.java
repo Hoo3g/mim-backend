@@ -23,7 +23,13 @@ public interface ApplicationPortalRepository {
 
     List<PendingApplicationResponse> findPendingApplicationsByApplicant(UUID applicantId);
 
-    List<PendingApplicantResponse> findPendingApplicantsByCompany(UUID companyId);
+    List<PendingApplicantResponse> findApplicantsByCompany(UUID companyId, String status);
+
+    default List<PendingApplicantResponse> findPendingApplicantsByCompany(UUID companyId) {
+        return findApplicantsByCompany(companyId, "PENDING");
+    }
+
+    boolean updateApplicationStatusForCompany(UUID applicationId, UUID companyId, String status);
 
     record PostApplyTarget(UUID postId, UUID authorId, String postType, String approvalStatus, String postStatus) {}
 }

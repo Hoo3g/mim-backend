@@ -63,6 +63,7 @@ public class ApiEndpoints {
     public static final String POST_APPLY = "/{postId}/apply";
     public static final String POST_APPLICATIONS_MY = "/applications/me";
     public static final String POST_APPLICATIONS_RECEIVED = "/applications/received";
+    public static final String POST_APPLICATION_STATUS = "/applications/{applicationId}/status";
 
     // Profile Endpoints
     public static final String PROFILE = API_V1 + "/profile";

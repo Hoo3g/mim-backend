@@ -137,7 +137,7 @@ private static final String SELECT_POSTS_BASE_SQL = """
                 ?,
                 ?,
                 ?,
-                'PENDING',
+                ?,
                 ?,
                 ?,
                 CASE
@@ -171,9 +171,17 @@ private static final String SELECT_POSTS_BASE_SQL = """
                     WHEN NULLIF(BTRIM(CAST(? AS text)), '') IS NULL THEN NULL
                     ELSE string_to_array(CAST(? AS text), ',')
                 END,
-                approval_status    = 'PENDING',
-                moderator_id       = NULL,
-                moderation_comment = NULL,
+                approval_status    = ?,
+                moderator_id       = CASE
+                    WHEN ? = 'PENDING' THEN NULL
+                    WHEN ? = 'APPROVED' AND COALESCE(approval_status, 'PENDING') = 'REJECTED' THEN NULL
+                    ELSE moderator_id
+                END,
+                moderation_comment = CASE
+                    WHEN ? = 'PENDING' THEN NULL
+                    WHEN ? = 'APPROVED' AND COALESCE(approval_status, 'PENDING') = 'REJECTED' THEN NULL
+                    ELSE moderation_comment
+                END,
                 updated_at         = CURRENT_TIMESTAMP
             WHERE id = ? AND author_id = ?
             """;
@@ -286,7 +294,12 @@ private static final String SELECT_POSTS_BASE_SQL = """
 
     @Transactional
     @Override
-    public UUID createPost(UUID authorId, UpsertRecruitmentPostRequest request, String displayInfoJson, String tagsCsv) {
+    public UUID createPost(
+            UUID authorId,
+            UpsertRecruitmentPostRequest request,
+            String displayInfoJson,
+            String tagsCsv,
+            String approvalStatus) {
         UUID postId = UUID.randomUUID();
         jdbcTemplate.update(INSERT_POST_SQL,
                 postId,
@@ -303,6 +316,7 @@ private static final String SELECT_POSTS_BASE_SQL = """
                 request.getLocation(),
                 request.getSalaryRange(),
                 request.getStatus(),
+                approvalStatus,
                 request.getContactEmail(),
                 request.getContactPhone(),
                 tagsCsv,
@@ -317,7 +331,8 @@ private static final String SELECT_POSTS_BASE_SQL = """
             UUID authorId,
             UpsertRecruitmentPostRequest request,
             String displayInfoJson,
-            String tagsCsv) {
+            String tagsCsv,
+            String approvalStatus) {
         int affected = jdbcTemplate.update(
                 UPDATE_POST_BY_AUTHOR_SQL,
                 request.getTitle(),
@@ -336,6 +351,11 @@ private static final String SELECT_POSTS_BASE_SQL = """
                 request.getContactPhone(),
                 tagsCsv,
                 tagsCsv,
+                approvalStatus,
+                approvalStatus,
+                approvalStatus,
+                approvalStatus,
+                approvalStatus,
                 postId,
                 authorId);
         return affected > 0;

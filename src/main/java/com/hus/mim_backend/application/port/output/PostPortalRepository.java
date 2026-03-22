@@ -21,13 +21,18 @@ public interface PostPortalRepository {
 
     List<PublicPostResponse> findPostsByAuthor(UUID authorId);
 
-    UUID createPost(UUID authorId, UpsertRecruitmentPostRequest request, String displayInfoJson, String tagsCsv);
+    UUID createPost(UUID authorId,
+                    UpsertRecruitmentPostRequest request,
+                    String displayInfoJson,
+                    String tagsCsv,
+                    String approvalStatus);
 
     boolean updatePostByAuthor(UUID postId,
                                UUID authorId,
                                UpsertRecruitmentPostRequest request,
                                String displayInfoJson,
-                               String tagsCsv);
+                               String tagsCsv,
+                               String approvalStatus);
 
     boolean deletePostByAuthor(UUID postId, UUID authorId);
 
