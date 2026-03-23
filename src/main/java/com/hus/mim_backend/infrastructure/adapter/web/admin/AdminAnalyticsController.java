@@ -25,7 +25,7 @@ public class AdminAnalyticsController {
     @GetMapping(ApiEndpoints.ANALYTICS_OVERVIEW)
     public ResponseEntity<ApiResponse<AdminAnalyticsOverviewResponse>> getOverview(
             @RequestParam(defaultValue = "12") int months,
-            @RequestParam(defaultValue = "10") int onlineWindowMinutes) {
+            @RequestParam(defaultValue = "2") int onlineWindowMinutes) {
         AdminAnalyticsOverviewResponse overview = queryAdminAnalyticsUseCase.getOverview(months, onlineWindowMinutes);
         return ResponseEntity.ok(ApiResponse.success(overview, "Get admin analytics overview successfully"));
     }
