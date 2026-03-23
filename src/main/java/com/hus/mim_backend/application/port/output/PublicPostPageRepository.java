@@ -11,7 +11,7 @@ import java.util.List;
 public interface PublicPostPageRepository {
     PagedResult<PublicPostResponse> findApprovedPostsPage(String normalizedKeyword,
                                                           String normalizedType,
-                                                          List<String> specializationCandidates,
+                                                          List<String> categoryCandidates,
                                                           int page,
                                                           int size);
 }

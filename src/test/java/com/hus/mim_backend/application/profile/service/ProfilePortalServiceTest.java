@@ -181,7 +181,7 @@ class ProfilePortalServiceTest {
         }
 
         @Override
-        public int deactivateSpecialization(UUID specializationId) {
+        public int deleteSpecialization(UUID specializationId) {
             throw new UnsupportedOperationException();
         }
     }

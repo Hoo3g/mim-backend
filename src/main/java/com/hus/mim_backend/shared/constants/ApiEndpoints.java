@@ -33,9 +33,12 @@ public class ApiEndpoints {
     public static final String RESEARCH_HERO = "/research-hero";
     public static final String ADMIN_RESEARCH_CATEGORIES = ADMIN + "/research-categories";
     public static final String ADMIN_SPECIALIZATIONS = ADMIN + "/specializations";
+    public static final String ADMIN_RECRUITMENT_CATEGORIES = ADMIN + "/recruitment-categories";
     public static final String ADMIN_NEWS = ADMIN + "/news";
     public static final String ADMIN_NOTIFICATIONS = ADMIN + "/notifications";
     public static final String NOTIFICATIONS_STREAM = "/stream";
+    public static final String ADMIN_ANALYTICS = ADMIN + "/analytics";
+    public static final String ANALYTICS_OVERVIEW = "/overview";
 
     // Research Endpoints
     public static final String RESEARCH = API_V1 + "/research-papers";
@@ -48,6 +51,7 @@ public class ApiEndpoints {
     public static final String RESEARCH_BOOKMARK_MY = "/bookmarks/me";
     public static final String RESEARCH_CATEGORIES = API_V1 + "/research-categories";
     public static final String SPECIALIZATIONS = API_V1 + "/specializations";
+    public static final String RECRUITMENT_CATEGORIES = API_V1 + "/recruitment-categories";
     public static final String RESEARCH_CATEGORY_BY_ID = "/{categoryId}";
 
     // News Endpoints
@@ -63,6 +67,7 @@ public class ApiEndpoints {
     public static final String POST_APPLY = "/{postId}/apply";
     public static final String POST_APPLICATIONS_MY = "/applications/me";
     public static final String POST_APPLICATIONS_RECEIVED = "/applications/received";
+    public static final String POST_APPLICATION_BY_ID = "/applications/{applicationId}";
     public static final String POST_APPLICATION_STATUS = "/applications/{applicationId}/status";
 
     // Profile Endpoints
@@ -77,6 +82,9 @@ public class ApiEndpoints {
     // Storage Endpoints
     public static final String STORAGE = API_V1 + "/storage";
     public static final String PUBLIC_STORAGE = API_PUBLIC + "/storage";
+    public static final String PUBLIC_ANALYTICS = API_PUBLIC + "/analytics";
+    public static final String ANALYTICS_PAGE_VIEW = "/page-view";
+    public static final String ANALYTICS_HEARTBEAT = "/heartbeat";
     public static final String RESEARCH_PDFS = "/research-pdfs";
     public static final String RESEARCH_HERO_IMAGES = "/research-hero-images";
     public static final String PROFILE_CVS = "/profile-cvs";

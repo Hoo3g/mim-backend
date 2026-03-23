@@ -19,12 +19,17 @@ import java.util.stream.Collectors;
  * Application service for public post query use cases.
  */
 public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
-    private static final Map<String, List<String>> SPECIALIZATION_ALIAS_MAP = Map.of(
-            "tri tue nhan tao", List.of("ai", "artificial intelligence"),
-            "khoa hoc du lieu", List.of("khdl", "data science"),
-            "khoa hoc may tinh", List.of("khmt", "computer science"),
-            "toan kinh te", List.of("tkt", "actuary"),
-            "an ninh mang", List.of("cybersecurity", "security")
+    private static final Map<String, List<String>> CATEGORY_ALIAS_MAP = Map.of(
+            "backend", List.of("back end", "server side"),
+            "frontend", List.of("front end", "ui"),
+            "fullstack", List.of("full stack"),
+            "ai", List.of("artificial intelligence", "machine learning", "ml"),
+            "mobile", List.of("android", "ios", "flutter", "react native"),
+            "game", List.of("game dev", "unity", "unreal"),
+            "data", List.of("data engineer", "data analyst", "data science"),
+            "devops", List.of("platform", "sre"),
+            "qa", List.of("tester", "testing", "quality assurance"),
+            "ui/ux", List.of("ui ux", "ux", "product design")
     );
 
     private final PublicPostRepository repository;
@@ -43,18 +48,18 @@ public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_POSTS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).queryKey(#keyword, #type, #specializations)",
+            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).queryKey(#keyword, #type, #categories)",
             sync = true)
-    public List<PublicPostResponse> getPosts(String keyword, String type, List<String> specializations) {
+    public List<PublicPostResponse> getPosts(String keyword, String type, List<String> categories) {
         String normalizedKeyword = normalize(keyword);
         String normalizedType = normalize(type);
-        List<String> normalizedSpecializations = normalizeDistinct(specializations);
+        List<String> normalizedCategories = normalizeDistinct(categories);
 
         return repository.findApprovedPosts(
                 normalizedKeyword,
                 normalizedType,
-                normalizedSpecializations.stream()
-                        .flatMap((specialization) -> buildSpecializationCandidates(specialization).stream())
+                normalizedCategories.stream()
+                        .flatMap((category) -> buildCategoryCandidates(category).stream())
                         .distinct()
                         .toList());
     }
@@ -68,11 +73,11 @@ public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
         return repository.findApprovedPostById(postId);
     }
 
-    private List<String> buildSpecializationCandidates(String specialization) {
-        List<String> aliases = SPECIALIZATION_ALIAS_MAP.getOrDefault(specialization, List.of());
+    private List<String> buildCategoryCandidates(String category) {
+        List<String> aliases = CATEGORY_ALIAS_MAP.getOrDefault(category, List.of());
         return normalizeDistinct(
                 java.util.stream.Stream.concat(
-                                java.util.stream.Stream.of(specialization),
+                                java.util.stream.Stream.of(category),
                                 aliases.stream())
                         .toList()
         );

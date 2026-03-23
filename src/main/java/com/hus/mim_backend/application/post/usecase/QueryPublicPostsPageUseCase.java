@@ -8,7 +8,7 @@ import java.util.List;
 public interface QueryPublicPostsPageUseCase {
     PagedResult<PublicPostResponse> getPostsPage(String keyword,
                                                  String type,
-                                                 List<String> specializations,
+                                                 List<String> categories,
                                                  int page,
                                                  int size);
 }

@@ -48,8 +48,12 @@ public class PostController {
     public ResponseEntity<ApiResponse<List<PublicPostResponse>>> getPosts(
             @RequestParam(name = "q", required = false) String keyword,
             @RequestParam(name = "type", required = false) String type,
-            @RequestParam(name = "specialization", required = false) List<String> specializations) {
-        List<PublicPostResponse> posts = queryPublicPostsUseCase.getPosts(keyword, type, specializations);
+            @RequestParam(name = "category", required = false) List<String> categories,
+            @RequestParam(name = "specialization", required = false) List<String> legacySpecializations) {
+        List<PublicPostResponse> posts = queryPublicPostsUseCase.getPosts(
+                keyword,
+                type,
+                mergeCategoryParams(categories, legacySpecializations));
         return ResponseEntity.ok(ApiResponse.success(posts, "Get posts successfully"));
     }
 
@@ -57,13 +61,14 @@ public class PostController {
     public ResponseEntity<ApiResponse<PagedResult<PublicPostResponse>>> getPostsPaged(
             @RequestParam(name = "q", required = false) String keyword,
             @RequestParam(name = "type", required = false) String type,
-            @RequestParam(name = "specialization", required = false) List<String> specializations,
+            @RequestParam(name = "category", required = false) List<String> categories,
+            @RequestParam(name = "specialization", required = false) List<String> legacySpecializations,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
         PagedResult<PublicPostResponse> posts = queryPublicPostsPageUseCase.getPostsPage(
                 keyword,
                 type,
-                specializations,
+                mergeCategoryParams(categories, legacySpecializations),
                 page,
                 size);
         return ResponseEntity.ok(ApiResponse.success(posts, "Get paged posts successfully"));
@@ -144,5 +149,20 @@ public class PostController {
             return null;
         }
         return email;
+    }
+
+    private List<String> mergeCategoryParams(List<String> categories, List<String> legacySpecializations) {
+        if ((categories == null || categories.isEmpty()) && (legacySpecializations == null || legacySpecializations.isEmpty())) {
+            return List.of();
+        }
+
+        java.util.LinkedHashSet<String> merged = new java.util.LinkedHashSet<>();
+        if (categories != null) {
+            merged.addAll(categories);
+        }
+        if (legacySpecializations != null) {
+            merged.addAll(legacySpecializations);
+        }
+        return merged.stream().filter(StringUtils::hasText).toList();
     }
 }

@@ -95,6 +95,7 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
                    p.title AS post_title,
                    a.applicant_id,
                    applicant_post.id AS applicant_post_id,
+                   u.email AS applicant_email,
                    a.status,
                    COALESCE(
                        NULLIF(TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')), ''),
@@ -126,6 +127,25 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
               AND p.post_type LIKE 'COMPANY_%%'
               AND a.status = ?
             ORDER BY a.created_at DESC
+            """;
+
+    private static final String DELETE_PENDING_APPLICATION_SQL = """
+            DELETE FROM applications a
+            USING posts p
+            WHERE a.post_id = p.id
+              AND a.post_id = ?
+              AND a.applicant_id = ?
+              AND a.status = 'PENDING'
+              AND p.post_type LIKE 'COMPANY_%%'
+            """;
+
+    private static final String DELETE_APPLICATION_BY_COMPANY_SQL = """
+            DELETE FROM applications a
+            USING posts p
+            WHERE a.post_id = p.id
+              AND a.id = ?
+              AND p.author_id = ?
+              AND p.post_type LIKE 'COMPANY_%%'
             """;
 
     private static final String UPDATE_APPLICATION_STATUS_BY_COMPANY_SQL = """
@@ -230,6 +250,7 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             item.setPostTitle(rs.getString("post_title"));
             item.setApplicantId(rs.getObject("applicant_id", UUID.class));
             item.setApplicantPostId(rs.getObject("applicant_post_id", UUID.class));
+            item.setApplicantEmail(rs.getString("applicant_email"));
             item.setStatus(rs.getString("status"));
             item.setApplicantName(rs.getString("applicant_name"));
             item.setMessage(rs.getString("message"));
@@ -237,6 +258,16 @@ public class JdbcApplicationPortalRepository implements ApplicationPortalReposit
             item.setAppliedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             return item;
         }, companyId, status);
+    }
+
+    @Override
+    public boolean deletePendingApplication(UUID postId, UUID applicantId) {
+        return jdbcTemplate.update(DELETE_PENDING_APPLICATION_SQL, postId, applicantId) > 0;
+    }
+
+    @Override
+    public boolean deleteApplicationForCompany(UUID applicationId, UUID companyId) {
+        return jdbcTemplate.update(DELETE_APPLICATION_BY_COMPANY_SQL, applicationId, companyId) > 0;
     }
 
     @Override

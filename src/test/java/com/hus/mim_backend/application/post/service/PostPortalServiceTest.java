@@ -2,18 +2,22 @@ package com.hus.mim_backend.application.post.service;
 
 import com.hus.mim_backend.application.port.output.PendingContentNotificationPort;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
+import com.hus.mim_backend.application.port.output.RecruitmentCategoryRepository;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
 import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.Email;
 import com.hus.mim_backend.domain.auth.model.User;
+import com.hus.mim_backend.domain.shared.DomainException;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -28,8 +32,13 @@ class PostPortalServiceTest {
     void createPostShouldAutoApproveCompanyPostAndSkipPendingNotification() {
         PostPortalRepository repository = mock(PostPortalRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
+        RecruitmentCategoryRepository recruitmentCategoryRepository = mock(RecruitmentCategoryRepository.class);
         PendingContentNotificationPort pendingContentNotificationPort = mock(PendingContentNotificationPort.class);
-        PostPortalService service = new PostPortalService(repository, userRepository, pendingContentNotificationPort);
+        PostPortalService service = new PostPortalService(
+                repository,
+                userRepository,
+                recruitmentCategoryRepository,
+                pendingContentNotificationPort);
 
         String email = "company-" + UUID.randomUUID() + "@example.com";
         UUID userId = UUID.randomUUID();
@@ -55,8 +64,13 @@ class PostPortalServiceTest {
     void updatePostShouldKeepApprovedStatusForAlreadyApprovedPost() {
         PostPortalRepository repository = mock(PostPortalRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
+        RecruitmentCategoryRepository recruitmentCategoryRepository = mock(RecruitmentCategoryRepository.class);
         PendingContentNotificationPort pendingContentNotificationPort = mock(PendingContentNotificationPort.class);
-        PostPortalService service = new PostPortalService(repository, userRepository, pendingContentNotificationPort);
+        PostPortalService service = new PostPortalService(
+                repository,
+                userRepository,
+                recruitmentCategoryRepository,
+                pendingContentNotificationPort);
 
         String email = "student-" + UUID.randomUUID() + "@example.com";
         UUID userId = UUID.randomUUID();
@@ -87,6 +101,36 @@ class PostPortalServiceTest {
                 isNull(),
                 isNull(),
                 eq("APPROVED"));
+    }
+
+    @Test
+    void createPostShouldRejectWhenStudentAlreadyHasRecruitmentPost() {
+        PostPortalRepository repository = mock(PostPortalRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        RecruitmentCategoryRepository recruitmentCategoryRepository = mock(RecruitmentCategoryRepository.class);
+        PendingContentNotificationPort pendingContentNotificationPort = mock(PendingContentNotificationPort.class);
+        PostPortalService service = new PostPortalService(
+                repository,
+                userRepository,
+                recruitmentCategoryRepository,
+                pendingContentNotificationPort);
+
+        String email = "student-" + UUID.randomUUID() + "@example.com";
+        UUID userId = UUID.randomUUID();
+        UUID existingPostId = UUID.randomUUID();
+        UpsertRecruitmentPostRequest request = newRequest("STUDENT_SEEKING_JOB");
+        PublicPostResponse existingPost = postResponse(existingPostId, userId, "APPROVED");
+
+        when(repository.findUserIdByEmail(email)).thenReturn(Optional.of(userId));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(approvedUser(userId, email)));
+        when(repository.findPrimaryRole(userId)).thenReturn(Optional.of("STUDENT"));
+        when(repository.findPostsByAuthor(userId)).thenReturn(List.of(existingPost));
+
+        DomainException error = assertThrows(DomainException.class, () -> service.createPost(email, request));
+
+        assertEquals("Tài khoản sinh viên chỉ được tạo duy nhất 1 bài tuyển dụng. Bạn hãy chỉnh sửa bài đã có.", error.getMessage());
+        verify(repository, never()).createPost(eq(userId), any(UpsertRecruitmentPostRequest.class), any(), any(), any());
+        verify(pendingContentNotificationPort, never()).notifyNewPendingContent(any(), any(), any(), any());
     }
 
     private static UpsertRecruitmentPostRequest newRequest(String postType) {

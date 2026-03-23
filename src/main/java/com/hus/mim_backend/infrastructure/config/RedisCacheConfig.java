@@ -65,6 +65,8 @@ public class RedisCacheConfig {
         cacheConfigurations.put(CacheNames.RESEARCH_CATEGORIES_ALL, defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigurations.put(CacheNames.PUBLIC_SPECIALIZATIONS, defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigurations.put(CacheNames.SPECIALIZATIONS_ALL, defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put(CacheNames.PUBLIC_RECRUITMENT_CATEGORIES, defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put(CacheNames.RECRUITMENT_CATEGORIES_ALL, defaultConfig.entryTtl(Duration.ofMinutes(10)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)

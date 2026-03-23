@@ -89,15 +89,12 @@ public class ResearchCategoryJpaAdapter implements ResearchCategoryRepository {
 
     @Override
     @Transactional
-    public int deactivateCategory(UUID categoryId) {
+    public int deleteCategory(UUID categoryId) {
         Optional<ResearchCategoryEntity> existing = repository.findById(categoryId);
         if (existing.isEmpty()) {
             return 0;
         }
-        ResearchCategoryEntity entity = existing.get();
-        entity.setActive(false);
-        entity.setUpdatedAt(LocalDateTime.now());
-        repository.save(entity);
+        repository.delete(existing.get());
         return 1;
     }
 

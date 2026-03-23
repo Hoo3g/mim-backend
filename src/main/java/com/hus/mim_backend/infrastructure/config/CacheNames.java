@@ -11,6 +11,8 @@ public final class CacheNames {
     public static final String RESEARCH_CATEGORIES_ALL = "researchCategoriesAll";
     public static final String PUBLIC_SPECIALIZATIONS = "publicSpecializations";
     public static final String SPECIALIZATIONS_ALL = "specializationsAll";
+    public static final String PUBLIC_RECRUITMENT_CATEGORIES = "publicRecruitmentCategories";
+    public static final String RECRUITMENT_CATEGORIES_ALL = "recruitmentCategoriesAll";
 
     private CacheNames() {
     }

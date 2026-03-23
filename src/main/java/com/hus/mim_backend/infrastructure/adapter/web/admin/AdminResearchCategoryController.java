@@ -76,13 +76,13 @@ public class AdminResearchCategoryController {
     }
 
     @DeleteMapping(ApiEndpoints.RESEARCH_CATEGORY_BY_ID)
-    public ResponseEntity<ApiResponse<Void>> deactivateCategory(@PathVariable UUID categoryId) {
-        boolean ok = manageResearchCategoryUseCase.deactivateCategory(categoryId);
+    public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable UUID categoryId) {
+        boolean ok = manageResearchCategoryUseCase.deleteCategory(categoryId);
         if (!ok) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Research category not found", "CATEGORY_NOT_FOUND"));
         }
-        return ResponseEntity.ok(ApiResponse.success(null, "Deactivate research category successfully"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Delete research category successfully"));
     }
 
     private boolean isDuplicateCategoryError(DomainException ex) {

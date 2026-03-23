@@ -11,6 +11,8 @@ import java.util.UUID;
 public interface ApplicationPortalUseCase {
     ApplicationResponse applyToPost(String email, UUID postId, ApplicationRequest request);
 
+    boolean cancelApplication(String email, UUID postId);
+
     List<PendingApplicationResponse> getMyPendingApplications(String email);
 
     List<PendingApplicantResponse> getApplicantsForMyCompanyPosts(String email, String status);
@@ -18,6 +20,8 @@ public interface ApplicationPortalUseCase {
     default List<PendingApplicantResponse> getPendingApplicantsForMyCompanyPosts(String email) {
         return getApplicantsForMyCompanyPosts(email, "PENDING");
     }
+
+    boolean deleteApplicationForMyCompanyPost(String email, UUID applicationId);
 
     boolean updateApplicationStatusForMyCompanyPost(String email, UUID applicationId, String status);
 }

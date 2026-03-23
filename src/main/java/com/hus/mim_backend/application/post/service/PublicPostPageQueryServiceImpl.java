@@ -18,12 +18,17 @@ import java.util.stream.Collectors;
 public class PublicPostPageQueryServiceImpl implements QueryPublicPostsPageUseCase {
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE = 50;
-    private static final Map<String, List<String>> SPECIALIZATION_ALIAS_MAP = Map.of(
-            "tri tue nhan tao", List.of("ai", "artificial intelligence"),
-            "khoa hoc du lieu", List.of("khdl", "data science"),
-            "khoa hoc may tinh", List.of("khmt", "computer science"),
-            "toan kinh te", List.of("tkt", "actuary"),
-            "an ninh mang", List.of("cybersecurity", "security")
+    private static final Map<String, List<String>> CATEGORY_ALIAS_MAP = Map.of(
+            "backend", List.of("back end", "server side"),
+            "frontend", List.of("front end", "ui"),
+            "fullstack", List.of("full stack"),
+            "ai", List.of("artificial intelligence", "machine learning", "ml"),
+            "mobile", List.of("android", "ios", "flutter", "react native"),
+            "game", List.of("game dev", "unity", "unreal"),
+            "data", List.of("data engineer", "data analyst", "data science"),
+            "devops", List.of("platform", "sre"),
+            "qa", List.of("tester", "testing", "quality assurance"),
+            "ui/ux", List.of("ui ux", "ux", "product design")
     );
 
     private final PublicPostPageRepository repository;
@@ -35,12 +40,12 @@ public class PublicPostPageQueryServiceImpl implements QueryPublicPostsPageUseCa
     @Override
     public PagedResult<PublicPostResponse> getPostsPage(String keyword,
             String type,
-            List<String> specializations,
+            List<String> categories,
             int page,
             int size) {
         String normalizedKeyword = normalize(keyword);
         String normalizedType = normalize(type);
-        List<String> normalizedSpecializations = normalizeDistinct(specializations);
+        List<String> normalizedCategories = normalizeDistinct(categories);
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         if (safeSize == 0) {
@@ -50,19 +55,19 @@ public class PublicPostPageQueryServiceImpl implements QueryPublicPostsPageUseCa
         return repository.findApprovedPostsPage(
                 normalizedKeyword,
                 normalizedType,
-                normalizedSpecializations.stream()
-                        .flatMap((specialization) -> buildSpecializationCandidates(specialization).stream())
+                normalizedCategories.stream()
+                        .flatMap((category) -> buildCategoryCandidates(category).stream())
                         .distinct()
                         .toList(),
                 safePage,
                 safeSize);
     }
 
-    private List<String> buildSpecializationCandidates(String specialization) {
-        List<String> aliases = SPECIALIZATION_ALIAS_MAP.getOrDefault(specialization, List.of());
+    private List<String> buildCategoryCandidates(String category) {
+        List<String> aliases = CATEGORY_ALIAS_MAP.getOrDefault(category, List.of());
         return normalizeDistinct(
                 java.util.stream.Stream.concat(
-                                java.util.stream.Stream.of(specialization),
+                                java.util.stream.Stream.of(category),
                                 aliases.stream())
                         .toList()
         );

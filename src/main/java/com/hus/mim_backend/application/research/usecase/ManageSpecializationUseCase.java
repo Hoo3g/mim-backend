@@ -18,5 +18,5 @@ public interface ManageSpecializationUseCase {
 
     Optional<ResearchCategoryResponse> updateSpecialization(UUID specializationId, UpdateResearchCategoryRequest request);
 
-    boolean deactivateSpecialization(UUID specializationId);
+    boolean deleteSpecialization(UUID specializationId);
 }

@@ -29,7 +29,8 @@ class JdbcApplicationPortalRepositoryTest {
     @Test
     void findApplicantsByCompanyShouldIncludeApplicantStudentPostId() {
         UUID companyId = insertUser("company-stat-" + UUID.randomUUID() + "@example.com");
-        UUID studentId = insertUser("student-stat-" + UUID.randomUUID() + "@example.com");
+        String studentEmail = "student-stat-" + UUID.randomUUID() + "@example.com";
+        UUID studentId = insertUser(studentEmail);
         UUID companyPostId = insertPost(companyId, "COMPANY_RECRUITING_JOB", "APPROVED", "OPEN");
         UUID applicantPostId = insertPost(studentId, "STUDENT_SEEKING_JOB", "APPROVED", "OPEN");
         insertApplication(companyPostId, studentId);
@@ -38,6 +39,7 @@ class JdbcApplicationPortalRepositoryTest {
 
         assertEquals(1, applicants.size());
         assertEquals(applicantPostId, applicants.getFirst().getApplicantPostId());
+        assertEquals(studentEmail, applicants.getFirst().getApplicantEmail());
         assertEquals("PENDING", applicants.getFirst().getStatus());
     }
 
@@ -73,6 +75,22 @@ class JdbcApplicationPortalRepositoryTest {
     }
 
     @Test
+    void deletePendingApplicationShouldRemoveOnlyPendingStudentApplication() {
+        UUID companyId = insertUser("company-delete-stat-" + UUID.randomUUID() + "@example.com");
+        UUID studentId = insertUser("student-delete-stat-" + UUID.randomUUID() + "@example.com");
+        UUID companyPostId = insertPost(companyId, "COMPANY_RECRUITING_JOB", "APPROVED", "OPEN");
+        UUID applicationId = insertApplication(companyPostId, studentId);
+
+        boolean deleted = repository.deletePendingApplication(companyPostId, studentId);
+
+        assertTrue(deleted);
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM applications WHERE id = ?",
+                Integer.class,
+                applicationId));
+    }
+
+    @Test
     void updateApplicationStatusForCompanyShouldOnlyProcessPendingApplicationOwnedByCompany() {
         UUID companyId = insertUser("company-update-stat-" + UUID.randomUUID() + "@example.com");
         UUID studentId = insertUser("student-update-stat-" + UUID.randomUUID() + "@example.com");
@@ -85,6 +103,22 @@ class JdbcApplicationPortalRepositoryTest {
         assertEquals("REVIEWED", jdbcTemplate.queryForObject(
                 "SELECT status FROM applications WHERE id = ?",
                 String.class,
+                applicationId));
+    }
+
+    @Test
+    void deleteApplicationForCompanyShouldRemoveApplicationOwnedByCompany() {
+        UUID companyId = insertUser("company-delete-app-" + UUID.randomUUID() + "@example.com");
+        UUID studentId = insertUser("student-delete-app-" + UUID.randomUUID() + "@example.com");
+        UUID companyPostId = insertPost(companyId, "COMPANY_RECRUITING_JOB", "APPROVED", "OPEN");
+        UUID applicationId = insertApplication(companyPostId, studentId);
+
+        boolean deleted = repository.deleteApplicationForCompany(applicationId, companyId);
+
+        assertTrue(deleted);
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM applications WHERE id = ?",
+                Integer.class,
                 applicationId));
     }
 

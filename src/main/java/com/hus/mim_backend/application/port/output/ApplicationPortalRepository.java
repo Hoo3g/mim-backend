@@ -25,9 +25,13 @@ public interface ApplicationPortalRepository {
 
     List<PendingApplicantResponse> findApplicantsByCompany(UUID companyId, String status);
 
+    boolean deletePendingApplication(UUID postId, UUID applicantId);
+
     default List<PendingApplicantResponse> findPendingApplicantsByCompany(UUID companyId) {
         return findApplicantsByCompany(companyId, "PENDING");
     }
+
+    boolean deleteApplicationForCompany(UUID applicationId, UUID companyId);
 
     boolean updateApplicationStatusForCompany(UUID applicationId, UUID companyId, String status);
 

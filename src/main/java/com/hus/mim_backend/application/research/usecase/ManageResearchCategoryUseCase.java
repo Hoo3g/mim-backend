@@ -18,5 +18,5 @@ public interface ManageResearchCategoryUseCase {
 
     Optional<ResearchCategoryResponse> updateCategory(UUID categoryId, UpdateResearchCategoryRequest request);
 
-    boolean deactivateCategory(UUID categoryId);
+    boolean deleteCategory(UUID categoryId);
 }

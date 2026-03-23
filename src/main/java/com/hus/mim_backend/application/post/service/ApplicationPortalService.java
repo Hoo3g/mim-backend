@@ -55,6 +55,21 @@ public class ApplicationPortalService implements ApplicationPortalUseCase {
     }
 
     @Override
+    public boolean cancelApplication(String email, UUID postId) {
+        UUID applicantId = resolveUserId(email);
+        String role = resolvePrimaryRole(applicantId);
+        if (!ROLE_STUDENT.equals(role)) {
+            throw new DomainException("Only student accounts can cancel recruitment applications");
+        }
+
+        boolean cancelled = repository.deletePendingApplication(postId, applicantId);
+        if (!cancelled) {
+            throw new DomainException("Pending application not found");
+        }
+        return true;
+    }
+
+    @Override
     public List<PendingApplicationResponse> getMyPendingApplications(String email) {
         UUID applicantId = resolveUserId(email);
         String role = resolvePrimaryRole(applicantId);
@@ -72,6 +87,21 @@ public class ApplicationPortalService implements ApplicationPortalUseCase {
             throw new DomainException("Only company accounts can view this list");
         }
         return repository.findApplicantsByCompany(companyId, normalizeApplicantListStatus(status));
+    }
+
+    @Override
+    public boolean deleteApplicationForMyCompanyPost(String email, UUID applicationId) {
+        UUID companyId = resolveUserId(email);
+        String role = resolvePrimaryRole(companyId);
+        if (!ROLE_COMPANY.equals(role)) {
+            throw new DomainException("Only company accounts can delete received applications");
+        }
+
+        boolean deleted = repository.deleteApplicationForCompany(applicationId, companyId);
+        if (!deleted) {
+            throw new DomainException("Application not found");
+        }
+        return true;
     }
 
     @Override

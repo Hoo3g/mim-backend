@@ -9,6 +9,7 @@ public class PendingApplicantResponse {
     private String postTitle;
     private UUID applicantId;
     private UUID applicantPostId;
+    private String applicantEmail;
     private String status;
     private String applicantName;
     private String message;
@@ -53,6 +54,14 @@ public class PendingApplicantResponse {
 
     public void setApplicantPostId(UUID applicantPostId) {
         this.applicantPostId = applicantPostId;
+    }
+
+    public String getApplicantEmail() {
+        return applicantEmail;
+    }
+
+    public void setApplicantEmail(String applicantEmail) {
+        this.applicantEmail = applicantEmail;
     }
 
     public String getStatus() {

@@ -106,11 +106,11 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
             @CacheEvict(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.SPECIALIZATIONS_ALL, allEntries = true)
     })
-    public boolean deactivateSpecialization(UUID specializationId) {
+    public boolean deleteSpecialization(UUID specializationId) {
         if (specializationId == null) {
             throw new DomainException("specializationId is required");
         }
-        return repository.deactivateSpecialization(specializationId) > 0;
+        return repository.deleteSpecialization(specializationId) > 0;
     }
 
     private String normalizeName(String value) {

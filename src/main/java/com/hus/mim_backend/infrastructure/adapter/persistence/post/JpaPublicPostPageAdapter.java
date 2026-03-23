@@ -95,7 +95,7 @@ public class JpaPublicPostPageAdapter implements PublicPostPageRepository {
     @Override
     public PagedResult<PublicPostResponse> findApprovedPostsPage(String normalizedKeyword,
             String normalizedType,
-            List<String> specializationCandidates,
+            List<String> categoryCandidates,
             int page,
             int size) {
         int safePage = Math.max(page, 0);
@@ -111,23 +111,41 @@ public class JpaPublicPostPageAdapter implements PublicPostPageRepository {
             whereSql.append("\n  AND UPPER(COALESCE(p.post_type, '')) LIKE 'STUDENT_%'");
         }
 
-        if (specializationCandidates != null && !specializationCandidates.isEmpty()) {
-            whereSql.append("\n  AND EXISTS (")
-                    .append("\n      SELECT 1")
-                    .append("\n      FROM unnest(COALESCE(p.tags, ARRAY[]::text[])) AS tag")
-                    .append("\n      WHERE ");
-
+        if (categoryCandidates != null && !categoryCandidates.isEmpty()) {
             List<String> clauses = new ArrayList<>();
-            for (int index = 0; index < specializationCandidates.size(); index++) {
-                String parameterName = "specialization" + index;
+            String normalizedContentSql = normalizeSql(
+                    "CONCAT_WS(' ', p.title, p.description, " + AUTHOR_NAME_SQL
+                            + ", p.requirements, p.achievements, p.benefits, p.location)");
+
+            for (int index = 0; index < categoryCandidates.size(); index++) {
+                String parameterName = "category" + index;
                 String likeParameterName = parameterName + "Like";
-                clauses.add("(" + normalizeSql("tag") + " = :" + parameterName
-                        + " OR " + normalizeSql("tag") + " LIKE :" + likeParameterName + ")");
-                params.put(parameterName, specializationCandidates.get(index));
-                params.put(likeParameterName, "%" + specializationCandidates.get(index) + "%");
+                String wordLikeParameterName = parameterName + "WordLike";
+                String category = categoryCandidates.get(index);
+                String contentClause = category.length() <= 2
+                        ? "(' ' || " + normalizedContentSql + " || ' ') LIKE :" + wordLikeParameterName
+                        : normalizedContentSql + " LIKE :" + likeParameterName;
+
+                clauses.add("""
+                        (
+                            EXISTS (
+                                SELECT 1
+                                FROM unnest(COALESCE(p.tags, ARRAY[]::text[])) AS tag_row(tag_value)
+                                WHERE %s = :%s
+                            )
+                            OR %s
+                        )
+                        """.formatted(normalizeSql("tag_value"), parameterName, contentClause));
+                params.put(parameterName, category);
+                if (category.length() <= 2) {
+                    params.put(wordLikeParameterName, "% " + category + " %");
+                } else {
+                    params.put(likeParameterName, "%" + category + "%");
+                }
             }
 
-            whereSql.append(String.join(" OR ", clauses))
+            whereSql.append("\n  AND (")
+                    .append(String.join(" OR ", clauses))
                     .append("\n  )");
         }
 

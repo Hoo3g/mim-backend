@@ -8,10 +8,14 @@ import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
 import com.hus.mim_backend.application.auth.usecase.ResendEmailVerificationUseCase;
 import com.hus.mim_backend.application.auth.usecase.VerifyEmailUseCase;
+import com.hus.mim_backend.application.analytics.service.AnalyticsServiceImpl;
+import com.hus.mim_backend.application.analytics.usecase.QueryAdminAnalyticsUseCase;
+import com.hus.mim_backend.application.analytics.usecase.RecordAnalyticsTrackingUseCase;
 import com.hus.mim_backend.application.content.service.ResearchHeroContentServiceImpl;
 import com.hus.mim_backend.application.content.usecase.ManageResearchHeroContentUseCase;
 import com.hus.mim_backend.application.moderation.service.AdminModerationServiceImpl;
 import com.hus.mim_backend.application.moderation.usecase.AdminModerationUseCase;
+import com.hus.mim_backend.application.port.output.AnalyticsRepository;
 import com.hus.mim_backend.application.port.output.GoogleTokenVerifier;
 import com.hus.mim_backend.application.moderation.service.ModerationServiceImpl;
 import com.hus.mim_backend.application.moderation.usecase.ModerationUseCase;
@@ -34,6 +38,7 @@ import com.hus.mim_backend.application.port.output.PostRepository;
 import com.hus.mim_backend.application.port.output.ProfilePortalRepository;
 import com.hus.mim_backend.application.port.output.PublicPostPageRepository;
 import com.hus.mim_backend.application.port.output.PublicPostRepository;
+import com.hus.mim_backend.application.port.output.RecruitmentCategoryRepository;
 import com.hus.mim_backend.application.port.output.RbacRepository;
 import com.hus.mim_backend.application.port.output.RefreshTokenRepository;
 import com.hus.mim_backend.application.port.output.ResearchBookmarkRepository;
@@ -49,15 +54,18 @@ import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.service.PostServiceImpl;
 import com.hus.mim_backend.application.post.service.PostPortalService;
+import com.hus.mim_backend.application.post.service.RecruitmentCategoryServiceImpl;
 import com.hus.mim_backend.application.post.service.PublicPostPageQueryServiceImpl;
 import com.hus.mim_backend.application.post.service.PublicPostQueryServiceImpl;
 import com.hus.mim_backend.application.post.service.ApplicationPortalService;
 import com.hus.mim_backend.application.post.usecase.ApplicationPortalUseCase;
 import com.hus.mim_backend.application.post.usecase.ApplyToPostUseCase;
+import com.hus.mim_backend.application.post.usecase.ManageRecruitmentCategoryUseCase;
 import com.hus.mim_backend.application.post.usecase.ManagePostUseCase;
 import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsPageUseCase;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
+import com.hus.mim_backend.application.post.usecase.QueryRecruitmentCategoryUseCase;
 import com.hus.mim_backend.application.profile.service.CompanyProfileService;
 import com.hus.mim_backend.application.profile.service.LecturerProfileService;
 import com.hus.mim_backend.application.profile.service.ProfilePortalService;
@@ -162,6 +170,28 @@ public class BeanConfig {
     }
 
     // -------------------------------------------------------
+    // Analytics
+    // -------------------------------------------------------
+
+    @Bean
+    @ConditionalOnBean(AnalyticsRepository.class)
+    public AnalyticsServiceImpl analyticsService(AnalyticsRepository analyticsRepository) {
+        return new AnalyticsServiceImpl(analyticsRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(AnalyticsServiceImpl.class)
+    public RecordAnalyticsTrackingUseCase recordAnalyticsTrackingUseCase(AnalyticsServiceImpl analyticsService) {
+        return analyticsService;
+    }
+
+    @Bean
+    @ConditionalOnBean(AnalyticsServiceImpl.class)
+    public QueryAdminAnalyticsUseCase queryAdminAnalyticsUseCase(AnalyticsServiceImpl analyticsService) {
+        return analyticsService;
+    }
+
+    // -------------------------------------------------------
     // Content
     // -------------------------------------------------------
 
@@ -228,11 +258,16 @@ public class BeanConfig {
     }
 
     @Bean
-    @ConditionalOnBean(PostPortalRepository.class)
+    @ConditionalOnBean({ PostPortalRepository.class, RecruitmentCategoryRepository.class })
     public PostPortalService postPortalService(PostPortalRepository postPortalRepository,
             UserRepository userRepository,
+            RecruitmentCategoryRepository recruitmentCategoryRepository,
             PendingContentNotificationPort pendingContentNotificationPort) {
-        return new PostPortalService(postPortalRepository, userRepository, pendingContentNotificationPort);
+        return new PostPortalService(
+                postPortalRepository,
+                userRepository,
+                recruitmentCategoryRepository,
+                pendingContentNotificationPort);
     }
 
     @Bean
@@ -381,6 +416,27 @@ public class BeanConfig {
     @ConditionalOnBean(SpecializationServiceImpl.class)
     public ManageSpecializationUseCase manageSpecializationUseCase(SpecializationServiceImpl specializationService) {
         return specializationService;
+    }
+
+    @Bean
+    @ConditionalOnBean(RecruitmentCategoryRepository.class)
+    public RecruitmentCategoryServiceImpl recruitmentCategoryService(
+            RecruitmentCategoryRepository recruitmentCategoryRepository) {
+        return new RecruitmentCategoryServiceImpl(recruitmentCategoryRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(RecruitmentCategoryServiceImpl.class)
+    public QueryRecruitmentCategoryUseCase queryRecruitmentCategoryUseCase(
+            RecruitmentCategoryServiceImpl recruitmentCategoryService) {
+        return recruitmentCategoryService;
+    }
+
+    @Bean
+    @ConditionalOnBean(RecruitmentCategoryServiceImpl.class)
+    public ManageRecruitmentCategoryUseCase manageRecruitmentCategoryUseCase(
+            RecruitmentCategoryServiceImpl recruitmentCategoryService) {
+        return recruitmentCategoryService;
     }
 
     // -------------------------------------------------------

@@ -106,7 +106,7 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
     @Override
     public List<PublicPostResponse> findApprovedPosts(String normalizedKeyword,
             String normalizedType,
-            List<String> specializationCandidates) {
+            List<String> categoryCandidates) {
         StringBuilder sql = new StringBuilder(SELECT_POSTS_BASE_SQL)
                 .append("\nWHERE COALESCE(p.approval_status, 'PENDING') = 'APPROVED'");
         MapSqlParameterSource params = new MapSqlParameterSource();
@@ -117,22 +117,39 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
             sql.append("\n  AND UPPER(COALESCE(p.post_type, '')) LIKE 'STUDENT_%'");
         }
 
-        if (specializationCandidates != null && !specializationCandidates.isEmpty()) {
-            sql.append("\n  AND EXISTS (")
-                    .append("\n      SELECT 1")
-                    .append("\n      FROM unnest(COALESCE(p.tags, ARRAY[]::text[])) AS tag")
-                    .append("\n      WHERE ");
-
+        if (categoryCandidates != null && !categoryCandidates.isEmpty()) {
             List<String> clauses = new ArrayList<>();
-            for (int i = 0; i < specializationCandidates.size(); i++) {
-                String paramName = "specialization" + i;
+            String normalizedContentSql = PersistenceSqlFragments.normalizeSql(
+                    "CONCAT_WS(' ', p.title, p.description, " + PersistenceSqlFragments.AUTHOR_NAME_SQL
+                            + ", p.requirements, p.achievements, p.benefits, p.location)");
+
+            for (int i = 0; i < categoryCandidates.size(); i++) {
+                String paramName = "category" + i;
                 String likeParamName = paramName + "Like";
-                clauses.add("(" + PersistenceSqlFragments.normalizeSql("tag") + " = :" + paramName
-                        + " OR " + PersistenceSqlFragments.normalizeSql("tag") + " LIKE :" + likeParamName + ")");
-                params.addValue(paramName, specializationCandidates.get(i));
-                params.addValue(likeParamName, "%" + specializationCandidates.get(i) + "%");
+                String wordLikeParamName = paramName + "WordLike";
+                String category = categoryCandidates.get(i);
+                String contentClause = category.length() <= 2
+                        ? "(' ' || " + normalizedContentSql + " || ' ') LIKE :" + wordLikeParamName
+                        : normalizedContentSql + " LIKE :" + likeParamName;
+
+                clauses.add("""
+                        (
+                            EXISTS (
+                                SELECT 1
+                                FROM unnest(COALESCE(p.tags, ARRAY[]::text[])) AS tag_row(tag_value)
+                                WHERE %s = :%s
+                            )
+                            OR %s
+                        )
+                        """.formatted(PersistenceSqlFragments.normalizeSql("tag_value"), paramName, contentClause));
+                params.addValue(paramName, category);
+                if (category.length() <= 2) {
+                    params.addValue(wordLikeParamName, "% " + category + " %");
+                } else {
+                    params.addValue(likeParamName, "%" + category + "%");
+                }
             }
-            sql.append(String.join(" OR ", clauses)).append("\n  )");
+            sql.append("\n  AND (").append(String.join(" OR ", clauses)).append("\n  )");
         }
 
         if (StringUtils.hasText(normalizedKeyword)) {

@@ -14,7 +14,7 @@ public interface PublicPostRepository {
 
     List<PublicPostResponse> findApprovedPosts(String normalizedKeyword,
                                               String normalizedType,
-                                              List<String> specializationCandidates);
+                                              List<String> categoryCandidates);
 
     Optional<PublicPostResponse> findApprovedPostById(UUID postId);
 }

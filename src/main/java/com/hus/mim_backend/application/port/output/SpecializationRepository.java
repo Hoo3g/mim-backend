@@ -26,5 +26,5 @@ public interface SpecializationRepository {
 
     int updateSpecialization(UUID specializationId, String specializationName, int sortOrder, boolean active);
 
-    int deactivateSpecialization(UUID specializationId);
+    int deleteSpecialization(UUID specializationId);
 }

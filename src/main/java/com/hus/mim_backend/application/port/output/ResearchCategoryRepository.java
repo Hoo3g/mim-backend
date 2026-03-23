@@ -28,5 +28,5 @@ public interface ResearchCategoryRepository {
 
     int updateCategory(UUID categoryId, String categoryName, int sortOrder, boolean active);
 
-    int deactivateCategory(UUID categoryId);
+    int deleteCategory(UUID categoryId);
 }

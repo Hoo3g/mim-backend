@@ -107,11 +107,11 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL, allEntries = true)
     })
-    public boolean deactivateCategory(UUID categoryId) {
+    public boolean deleteCategory(UUID categoryId) {
         if (categoryId == null) {
             throw new DomainException("categoryId is required");
         }
-        return repository.deactivateCategory(categoryId) > 0;
+        return repository.deleteCategory(categoryId) > 0;
     }
 
     private String normalizeCategoryName(String value) {

@@ -3,8 +3,9 @@ package com.hus.mim_backend.application.post.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hus.mim_backend.application.port.output.PendingContentNotificationPort;
-import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
+import com.hus.mim_backend.application.port.output.RecruitmentCategoryRepository;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.UpsertRecruitmentPostRequest;
 import com.hus.mim_backend.application.post.usecase.PostPortalUseCase;
@@ -44,14 +45,17 @@ public class PostPortalService implements PostPortalUseCase {
 
     private final PostPortalRepository repository;
     private final UserRepository userRepository;
+    private final RecruitmentCategoryRepository recruitmentCategoryRepository;
     private final PendingContentNotificationPort pendingContentNotificationPort;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public PostPortalService(PostPortalRepository repository,
             UserRepository userRepository,
+            RecruitmentCategoryRepository recruitmentCategoryRepository,
             PendingContentNotificationPort pendingContentNotificationPort) {
         this.repository = repository;
         this.userRepository = userRepository;
+        this.recruitmentCategoryRepository = recruitmentCategoryRepository;
         this.pendingContentNotificationPort = pendingContentNotificationPort;
     }
 
@@ -89,6 +93,7 @@ public class PostPortalService implements PostPortalUseCase {
         UUID userId = resolveUserId(email);
         ensureVerifiedPublisher(userId);
         String role = resolveRole(userId);
+        ensureStudentCanCreatePost(userId, role);
         normalizeAndValidate(request, role);
         String targetApprovalStatus = resolveCreateApprovalStatus(role);
 
@@ -189,6 +194,16 @@ public class PostPortalService implements PostPortalUseCase {
         }
     }
 
+    private void ensureStudentCanCreatePost(UUID userId, String role) {
+        if (!"STUDENT".equals(role)) {
+            return;
+        }
+
+        if (!repository.findPostsByAuthor(userId).isEmpty()) {
+            throw new DomainException("Tài khoản sinh viên chỉ được tạo duy nhất 1 bài tuyển dụng. Bạn hãy chỉnh sửa bài đã có.");
+        }
+    }
+
     private String resolveCreateApprovalStatus(String role) {
         if ("COMPANY".equals(role)) {
             return ApprovalStatus.APPROVED.name();
@@ -221,6 +236,7 @@ public class PostPortalService implements PostPortalUseCase {
         request.setStudentCvUrl(trimToNull(request.getStudentCvUrl()));
         request.setStatus(normalizeUpper(trimToNull(request.getStatus())));
         request.setTags(normalizeTags(request.getTags()));
+        validateRecruitmentCategories(request.getTags());
         request.setDisplayInfo(normalizeDisplayInfo(request.getDisplayInfo()));
 
         if (!StringUtils.hasText(request.getTitle()) || !StringUtils.hasText(request.getDescription())) {
@@ -280,6 +296,26 @@ public class PostPortalService implements PostPortalUseCase {
             return null;
         }
         return new ArrayList<>(normalized);
+    }
+
+    private void validateRecruitmentCategories(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+
+        Set<String> activeCategories = recruitmentCategoryRepository.findActiveRecruitmentCategoryNames(tags).stream()
+                .map((item) -> item.trim().toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<String> invalidCategories = tags.stream()
+                .map(String::trim)
+                .filter((item) -> !item.isBlank())
+                .filter((item) -> !activeCategories.contains(item.toLowerCase(Locale.ROOT)))
+                .toList();
+
+        if (!invalidCategories.isEmpty()) {
+            throw new DomainException("Invalid recruitment categories: " + String.join(", ", invalidCategories));
+        }
     }
 
     private Map<String, Object> normalizeDisplayInfo(Map<String, Object> displayInfo) {

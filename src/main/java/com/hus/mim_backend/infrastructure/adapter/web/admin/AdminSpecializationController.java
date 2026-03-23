@@ -76,13 +76,13 @@ public class AdminSpecializationController {
     }
 
     @DeleteMapping(ApiEndpoints.RESEARCH_CATEGORY_BY_ID)
-    public ResponseEntity<ApiResponse<Void>> deactivateSpecialization(@PathVariable UUID categoryId) {
-        boolean ok = manageSpecializationUseCase.deactivateSpecialization(categoryId);
+    public ResponseEntity<ApiResponse<Void>> deleteSpecialization(@PathVariable UUID categoryId) {
+        boolean ok = manageSpecializationUseCase.deleteSpecialization(categoryId);
         if (!ok) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Specialization not found", "SPECIALIZATION_NOT_FOUND"));
         }
-        return ResponseEntity.ok(ApiResponse.success(null, "Deactivate specialization successfully"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Delete specialization successfully"));
     }
 
     private boolean isDuplicateError(DomainException ex) {
