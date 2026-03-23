@@ -4,12 +4,8 @@ import com.hus.mim_backend.application.news.dto.CreateNewsRequest;
 import com.hus.mim_backend.application.news.dto.NewsResponse;
 import com.hus.mim_backend.application.news.dto.UpdateNewsRequest;
 import com.hus.mim_backend.application.news.usecase.ManageNewsUseCase;
-import com.hus.mim_backend.application.port.output.UserRepository;
-import com.hus.mim_backend.domain.auth.model.AccountStatus;
-import com.hus.mim_backend.domain.auth.model.Email;
-import com.hus.mim_backend.domain.auth.model.User;
+import com.hus.mim_backend.application.auth.usecase.VerifiedAccountUseCase;
 import com.hus.mim_backend.domain.shared.AuthException;
-import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import com.hus.mim_backend.shared.constants.RbacPermissions;
@@ -39,11 +35,11 @@ import java.util.UUID;
 @PreAuthorize("hasAuthority('PERM_" + RbacPermissions.RESEARCH_HERO_EDIT + "') or hasRole('ADMIN')")
 public class AdminNewsController {
     private final ManageNewsUseCase manageNewsUseCase;
-    private final UserRepository userRepository;
+    private final VerifiedAccountUseCase verifiedAccountUseCase;
 
-    public AdminNewsController(ManageNewsUseCase manageNewsUseCase, UserRepository userRepository) {
+    public AdminNewsController(ManageNewsUseCase manageNewsUseCase, VerifiedAccountUseCase verifiedAccountUseCase) {
         this.manageNewsUseCase = manageNewsUseCase;
-        this.userRepository = userRepository;
+        this.verifiedAccountUseCase = verifiedAccountUseCase;
     }
 
     @GetMapping
@@ -90,6 +86,11 @@ public class AdminNewsController {
     }
 
     private UUID resolveVerifiedUserId(Authentication authentication) {
+        String email = resolveAuthenticatedEmail(authentication);
+        return verifiedAccountUseCase.requireVerifiedUserId(email);
+    }
+
+    private String resolveAuthenticatedEmail(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new AuthException("Authentication required");
         }
@@ -97,12 +98,6 @@ public class AdminNewsController {
         if (!StringUtils.hasText(email)) {
             throw new AuthException("Authentication required");
         }
-
-        User user = userRepository.findByEmail(new Email(email.trim()))
-                .orElseThrow(() -> new DomainException("Authenticated user is not found"));
-        if (user.getStatus() != AccountStatus.APPROVED) {
-            throw new DomainException("Email chưa được xác thực. Tài khoản chỉ được xem nội dung cho tới khi hoàn tất xác thực email.");
-        }
-        return user.getId();
+        return email.trim();
     }
 }

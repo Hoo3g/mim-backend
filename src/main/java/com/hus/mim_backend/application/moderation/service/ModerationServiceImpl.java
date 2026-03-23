@@ -11,7 +11,7 @@ import com.hus.mim_backend.domain.moderation.model.ModerationLog;
 import com.hus.mim_backend.domain.post.model.Post;
 import com.hus.mim_backend.domain.research.model.ResearchPaper;
 import com.hus.mim_backend.domain.shared.DomainException;
-import com.hus.mim_backend.infrastructure.config.CacheNames;
+import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 

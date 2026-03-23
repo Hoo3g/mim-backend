@@ -1,12 +1,14 @@
 package com.hus.mim_backend.infrastructure.config;
 
 import com.hus.mim_backend.application.auth.service.AuthServiceImpl;
+import com.hus.mim_backend.application.auth.service.VerifiedAccountServiceImpl;
 import com.hus.mim_backend.application.auth.usecase.GoogleLoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LogoutUseCase;
 import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
 import com.hus.mim_backend.application.auth.usecase.ResendEmailVerificationUseCase;
+import com.hus.mim_backend.application.auth.usecase.VerifiedAccountUseCase;
 import com.hus.mim_backend.application.auth.usecase.VerifyEmailUseCase;
 import com.hus.mim_backend.application.analytics.service.AnalyticsServiceImpl;
 import com.hus.mim_backend.application.analytics.usecase.QueryAdminAnalyticsUseCase;
@@ -31,6 +33,7 @@ import com.hus.mim_backend.application.port.output.EmailVerificationTokenReposit
 import com.hus.mim_backend.application.port.output.LecturerRepository;
 import com.hus.mim_backend.application.port.output.ModerationLogRepository;
 import com.hus.mim_backend.application.port.output.NewsRepository;
+import com.hus.mim_backend.application.port.output.ObjectStorageRepository;
 import com.hus.mim_backend.application.port.output.PasswordEncoder;
 import com.hus.mim_backend.application.port.output.PendingContentNotificationPort;
 import com.hus.mim_backend.application.port.output.PostPortalRepository;
@@ -88,6 +91,8 @@ import com.hus.mim_backend.application.research.usecase.QueryPublicResearchPaper
 import com.hus.mim_backend.application.research.usecase.QueryResearchCategoryUseCase;
 import com.hus.mim_backend.application.research.usecase.QuerySpecializationUseCase;
 import com.hus.mim_backend.application.research.usecase.ResearchBookmarkUseCase;
+import com.hus.mim_backend.application.storage.service.StorageServiceImpl;
+import com.hus.mim_backend.application.storage.usecase.StorageUseCase;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -153,6 +158,18 @@ public class BeanConfig {
         return authService;
     }
 
+    @Bean
+    @ConditionalOnBean(UserRepository.class)
+    public VerifiedAccountServiceImpl verifiedAccountService(UserRepository userRepository) {
+        return new VerifiedAccountServiceImpl(userRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(VerifiedAccountServiceImpl.class)
+    public VerifiedAccountUseCase verifiedAccountUseCase(VerifiedAccountServiceImpl verifiedAccountService) {
+        return verifiedAccountService;
+    }
+
     // -------------------------------------------------------
     // RBAC
     // -------------------------------------------------------
@@ -206,6 +223,22 @@ public class BeanConfig {
     public ManageResearchHeroContentUseCase manageResearchHeroContentUseCase(
             ResearchHeroContentServiceImpl researchHeroContentService) {
         return researchHeroContentService;
+    }
+
+    // -------------------------------------------------------
+    // Storage
+    // -------------------------------------------------------
+
+    @Bean
+    @ConditionalOnBean(ObjectStorageRepository.class)
+    public StorageServiceImpl storageService(ObjectStorageRepository objectStorageRepository) {
+        return new StorageServiceImpl(objectStorageRepository);
+    }
+
+    @Bean
+    @ConditionalOnBean(StorageServiceImpl.class)
+    public StorageUseCase storageUseCase(StorageServiceImpl storageService) {
+        return storageService;
     }
 
     // -------------------------------------------------------

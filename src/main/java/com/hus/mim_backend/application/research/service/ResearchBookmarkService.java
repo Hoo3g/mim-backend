@@ -4,7 +4,7 @@ import com.hus.mim_backend.application.port.output.ResearchBookmarkRepository;
 import com.hus.mim_backend.application.research.dto.ResearchBookmarkResponse;
 import com.hus.mim_backend.application.research.usecase.ResearchBookmarkUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
-import com.hus.mim_backend.infrastructure.config.CacheNames;
+import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
@@ -23,7 +23,7 @@ public class ResearchBookmarkService implements ResearchBookmarkUseCase {
     @Caching(evict = {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
-                    key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)")
+                    key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
     })
     public void bookmarkPaper(String email, UUID paperId) {
         UUID userId = resolveUserId(email);
@@ -37,7 +37,7 @@ public class ResearchBookmarkService implements ResearchBookmarkUseCase {
     @Caching(evict = {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
-                    key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)")
+                    key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
     })
     public void unbookmarkPaper(String email, UUID paperId) {
         UUID userId = resolveUserId(email);

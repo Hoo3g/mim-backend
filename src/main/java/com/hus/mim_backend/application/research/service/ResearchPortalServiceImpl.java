@@ -9,7 +9,7 @@ import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseC
 import com.hus.mim_backend.domain.auth.model.AccountStatus;
 import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.DomainException;
-import com.hus.mim_backend.infrastructure.config.CacheNames;
+import com.hus.mim_backend.shared.constants.CacheNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
@@ -56,7 +56,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<PaperResponse> getAllApprovedPapers() {
         List<PaperResponse> papers = repository.findAllApprovedPapers();
@@ -66,7 +66,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).queryKey(#keyword, #category, #researchAreas)",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).queryKey(#keyword, #category, #researchAreas)",
             sync = true)
     public List<PaperResponse> getAllApprovedPapers(String keyword, String category, List<String> researchAreas) {
         String normalizedKeyword = normalize(keyword);
@@ -91,7 +91,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)",
             unless = "#result == null || #result.isEmpty()",
             sync = true)
     public Optional<PaperResponse> getApprovedPaperById(UUID paperId) {
@@ -104,7 +104,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     @Caching(evict = {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
-                    key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)")
+                    key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
     })
     public boolean trackApprovedPaperView(UUID paperId) {
         return repository.incrementApprovedPaperViewCount(paperId) > 0;
@@ -114,7 +114,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     @Caching(evict = {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
-                    key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#paperId)")
+                    key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
     })
     public boolean trackApprovedPaperDownload(UUID paperId) {
         return repository.incrementApprovedPaperDownloadCount(paperId) > 0;

@@ -7,7 +7,7 @@ import com.hus.mim_backend.application.research.dto.UpdateResearchCategoryReques
 import com.hus.mim_backend.application.research.usecase.ManageSpecializationUseCase;
 import com.hus.mim_backend.application.research.usecase.QuerySpecializationUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
-import com.hus.mim_backend.infrastructure.config.CacheNames;
+import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -31,7 +31,7 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getActiveSpecializations() {
         return repository.findActiveSpecializations();
@@ -39,7 +39,7 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
 
     @Override
     @Cacheable(cacheNames = CacheNames.SPECIALIZATIONS_ALL,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getAllSpecializations() {
         return repository.findAllSpecializations();

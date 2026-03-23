@@ -7,7 +7,7 @@ import com.hus.mim_backend.application.research.dto.CreateResearchCategoryReques
 import com.hus.mim_backend.application.research.dto.ResearchCategoryResponse;
 import com.hus.mim_backend.application.research.dto.UpdateResearchCategoryRequest;
 import com.hus.mim_backend.domain.shared.DomainException;
-import com.hus.mim_backend.infrastructure.config.CacheNames;
+import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -31,7 +31,7 @@ public class RecruitmentCategoryServiceImpl implements QueryRecruitmentCategoryU
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_RECRUITMENT_CATEGORIES,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getActiveRecruitmentCategories() {
         return repository.findActiveRecruitmentCategories();
@@ -39,7 +39,7 @@ public class RecruitmentCategoryServiceImpl implements QueryRecruitmentCategoryU
 
     @Override
     @Cacheable(cacheNames = CacheNames.RECRUITMENT_CATEGORIES_ALL,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getAllRecruitmentCategories() {
         return repository.findAllRecruitmentCategories();

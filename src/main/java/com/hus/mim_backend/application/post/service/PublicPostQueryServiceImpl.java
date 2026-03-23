@@ -3,7 +3,7 @@ package com.hus.mim_backend.application.post.service;
 import com.hus.mim_backend.application.port.output.PublicPostRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.usecase.QueryPublicPostsUseCase;
-import com.hus.mim_backend.infrastructure.config.CacheNames;
+import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.util.StringUtils;
 
@@ -40,7 +40,7 @@ public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_POSTS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<PublicPostResponse> getPosts() {
         return repository.findAllApprovedPosts();
@@ -48,7 +48,7 @@ public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_POSTS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).queryKey(#keyword, #type, #categories)",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).queryKey(#keyword, #type, #categories)",
             sync = true)
     public List<PublicPostResponse> getPosts(String keyword, String type, List<String> categories) {
         String normalizedKeyword = normalize(keyword);
@@ -66,7 +66,7 @@ public class PublicPostQueryServiceImpl implements QueryPublicPostsUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_POST_DETAILS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#postId)",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#postId)",
             unless = "#result == null || #result.isEmpty()",
             sync = true)
     public Optional<PublicPostResponse> getPostById(UUID postId) {

@@ -7,7 +7,7 @@ import com.hus.mim_backend.application.news.usecase.ManageNewsUseCase;
 import com.hus.mim_backend.application.port.output.NewsRepository;
 import com.hus.mim_backend.domain.news.model.News;
 import com.hus.mim_backend.domain.shared.DomainException;
-import com.hus.mim_backend.infrastructure.config.CacheNames;
+import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -90,7 +90,7 @@ public class NewsServiceImpl implements ManageNewsUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_NEWS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).singleton()",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<NewsResponse> getPublicNews() {
         return newsRepository.findPublishedOrderByPinnedAndCreatedAtDesc().stream()
@@ -107,7 +107,7 @@ public class NewsServiceImpl implements ManageNewsUseCase {
 
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_NEWS_DETAILS,
-            key = "T(com.hus.mim_backend.infrastructure.config.CacheKeys).idKey(#newsId)",
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#newsId)",
             unless = "#result == null || #result.isEmpty()",
             sync = true)
     public Optional<NewsResponse> getPublicNewsDetails(UUID newsId) {
