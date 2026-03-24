@@ -16,7 +16,7 @@ import java.util.Locale;
 
 public class AnalyticsServiceImpl implements RecordAnalyticsTrackingUseCase, QueryAdminAnalyticsUseCase {
     private static final int MIN_MONTHS = 1;
-    private static final int MAX_MONTHS = 24;
+    private static final int MAX_MONTHS = 120;
     private static final int MIN_ONLINE_WINDOW_MINUTES = 1;
     private static final int MAX_ONLINE_WINDOW_MINUTES = 120;
     private static final int TOP_PAGES_LIMIT = 8;

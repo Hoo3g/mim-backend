@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * JWT Token adapter implementing TokenProvider port
@@ -55,10 +56,12 @@ public class JwtTokenAdapter implements TokenProvider {
 
     @Override
     public String generateRefreshToken(User user) {
+        Date now = new Date();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(user.getEmail().value())
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + refreshTokenExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }
