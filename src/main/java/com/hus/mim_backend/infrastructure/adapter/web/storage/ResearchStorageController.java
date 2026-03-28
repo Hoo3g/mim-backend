@@ -37,7 +37,7 @@ import java.util.Optional;
 @RestController
 public class ResearchStorageController {
     private static final String AUTH_RESEARCH_CREATE = "hasAuthority('PERM_" + RbacPermissions.RESEARCH_CREATE + "')";
-    private static final String AUTH_RESEARCH_HERO_EDIT = "hasAuthority('PERM_" + RbacPermissions.RESEARCH_HERO_EDIT + "')";
+    private static final String AUTH_RESEARCH_HERO_EDIT = "hasAuthority('PERM_" + RbacPermissions.RESEARCH_HERO_EDIT + "') or hasRole('ADMIN')";
     private static final String AUTH_AUTHENTICATED = "isAuthenticated()";
 
     private final StorageUseCase storageUseCase;

@@ -6,13 +6,13 @@ import com.hus.mim_backend.application.moderation.dto.ModerationPostResponse;
 import com.hus.mim_backend.application.moderation.usecase.AdminModerationUseCase;
 import com.hus.mim_backend.application.port.output.AdminActivityNotificationPort;
 import com.hus.mim_backend.application.port.output.AdminModerationRepository;
+import com.hus.mim_backend.application.shared.PagedResult;
 import com.hus.mim_backend.domain.shared.DomainException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -22,6 +22,7 @@ import java.util.UUID;
  */
 public class AdminModerationServiceImpl implements AdminModerationUseCase {
     private static final Logger log = LoggerFactory.getLogger(AdminModerationServiceImpl.class);
+    private static final int MAX_PAGE_SIZE = 50;
 
     private final AdminModerationRepository repository;
     private final AdminActivityNotificationPort notificationPort;
@@ -33,15 +34,31 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
     }
 
     @Override
-    public List<ModerationPostResponse> getPostsForModeration(String status) {
+    public PagedResult<ModerationPostResponse> getPostsForModeration(String status, String keyword, int page, int size) {
         String normalizedStatus = normalizeApprovalStatus(status);
-        return repository.findPostsByStatus(normalizedStatus);
+        String normalizedKeyword = normalizeOptionalKeyword(keyword);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = safePage * safeSize;
+        return PagedResult.of(
+                repository.findPostsByStatus(normalizedStatus, normalizedKeyword, safeSize, offset),
+                safePage,
+                safeSize,
+                repository.countPostsByStatus(normalizedStatus, normalizedKeyword));
     }
 
     @Override
-    public List<ModerationPaperResponse> getPapersForModeration(String status) {
+    public PagedResult<ModerationPaperResponse> getPapersForModeration(String status, String keyword, int page, int size) {
         String normalizedStatus = normalizeApprovalStatus(status);
-        return repository.findPapersByStatus(normalizedStatus);
+        String normalizedKeyword = normalizeOptionalKeyword(keyword);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = safePage * safeSize;
+        return PagedResult.of(
+                repository.findPapersByStatus(normalizedStatus, normalizedKeyword, safeSize, offset),
+                safePage,
+                safeSize,
+                repository.countPapersByStatus(normalizedStatus, normalizedKeyword));
     }
 
     @Override
@@ -73,6 +90,36 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
 
         repository.insertModerationLog(moderatorId, "PAPER", paperId, action.toAuditAction(), comment);
         notifyDelegatedModerationHandled(moderatorEmail, "PAPER", paperId, action, comment);
+        return true;
+    }
+
+    @Override
+    public boolean deletePost(String moderatorEmail, UUID postId, String comment) {
+        UUID moderatorId = resolveModeratorId(moderatorEmail);
+        String normalizedComment = normalizeOptionalComment(comment);
+
+        int deleted = repository.deletePostById(postId);
+        if (deleted == 0) {
+            return false;
+        }
+
+        repository.insertModerationLog(moderatorId, "POST", postId, ModerationAction.DELETE.toAuditAction(), normalizedComment);
+        notifyDelegatedModerationHandled(moderatorEmail, "POST", postId, ModerationAction.DELETE, normalizedComment);
+        return true;
+    }
+
+    @Override
+    public boolean deletePaper(String moderatorEmail, UUID paperId, String comment) {
+        UUID moderatorId = resolveModeratorId(moderatorEmail);
+        String normalizedComment = normalizeOptionalComment(comment);
+
+        int deleted = repository.deletePaperById(paperId);
+        if (deleted == 0) {
+            return false;
+        }
+
+        repository.insertModerationLog(moderatorId, "PAPER", paperId, ModerationAction.DELETE.toAuditAction(), normalizedComment);
+        notifyDelegatedModerationHandled(moderatorEmail, "PAPER", paperId, ModerationAction.DELETE, normalizedComment);
         return true;
     }
 
@@ -136,6 +183,14 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
         return normalized.isEmpty() ? null : normalized;
     }
 
+    private String normalizeOptionalKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
     private UUID resolveModeratorId(String moderatorEmail) {
         if (!StringUtils.hasText(moderatorEmail)) {
             throw new DomainException("Authentication required");
@@ -147,14 +202,23 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
 
     private enum ModerationAction {
         APPROVE,
-        REJECT;
+        REJECT,
+        DELETE;
 
         public String toApprovalStatus() {
-            return this == APPROVE ? "APPROVED" : "REJECTED";
+            return switch (this) {
+                case APPROVE -> "APPROVED";
+                case REJECT -> "REJECTED";
+                case DELETE -> throw new IllegalStateException("DELETE action does not map to approval status");
+            };
         }
 
         public String toAuditAction() {
-            return this == APPROVE ? "APPROVE" : "REJECT";
+            return switch (this) {
+                case APPROVE -> "APPROVE";
+                case REJECT -> "REJECT";
+                case DELETE -> "DELETE";
+            };
         }
     }
 }

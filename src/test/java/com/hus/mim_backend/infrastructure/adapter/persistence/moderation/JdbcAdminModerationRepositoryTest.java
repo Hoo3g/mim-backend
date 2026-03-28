@@ -1,5 +1,7 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.moderation;
 
+import com.hus.mim_backend.application.moderation.dto.ModerationPaperResponse;
+import com.hus.mim_backend.application.moderation.dto.ModerationPostResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -7,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -82,6 +85,62 @@ class JdbcAdminModerationRepositoryTest {
         assertEquals(0, updated);
     }
 
+    @Test
+    void deletePostByIdShouldDeleteExistingPost() {
+        UUID authorId = insertUser("post-delete-author-" + UUID.randomUUID() + "@example.com");
+        UUID postId = insertPost(authorId, "APPROVED");
+
+        int deleted = repository.deletePostById(postId);
+
+        assertEquals(1, deleted);
+        Integer remaining = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM posts WHERE id = ?",
+                Integer.class,
+                postId);
+        assertEquals(0, remaining);
+    }
+
+    @Test
+    void deletePaperByIdShouldDeleteExistingPaper() {
+        UUID paperId = insertPaper("REJECTED");
+
+        int deleted = repository.deletePaperById(paperId);
+
+        assertEquals(1, deleted);
+        Integer remaining = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM research_papers WHERE id = ?",
+                Integer.class,
+                paperId);
+        assertEquals(0, remaining);
+    }
+
+    @Test
+    void findPostsByStatusShouldSupportKeywordAndLimit() {
+        UUID authorId = insertUser("post-search-author-" + UUID.randomUUID() + "@example.com");
+        insertPost(authorId, "APPROVED", "Backend Java Position", "Need Spring Boot skill");
+        insertPost(authorId, "APPROVED", "Frontend Angular Position", "Need Angular skill");
+
+        List<ModerationPostResponse> result = repository.findPostsByStatus("APPROVED", "java", 1, 0);
+        long total = repository.countPostsByStatus("APPROVED", "java");
+
+        assertEquals(1, result.size());
+        assertEquals(1L, total);
+        assertEquals("Backend Java Position", result.get(0).getTitle());
+    }
+
+    @Test
+    void findPapersByStatusShouldSupportKeywordAndLimit() {
+        insertPaper("APPROVED", "AI Optimization", "Neural optimization methods");
+        insertPaper("APPROVED", "Database Systems", "Postgres indexing");
+
+        List<ModerationPaperResponse> result = repository.findPapersByStatus("APPROVED", "neural", 1, 0);
+        long total = repository.countPapersByStatus("APPROVED", "neural");
+
+        assertEquals(1, result.size());
+        assertEquals(1L, total);
+        assertEquals("AI Optimization", result.get(0).getTitle());
+    }
+
     private UUID insertUser(String email) {
         UUID userId = UUID.randomUUID();
         jdbcTemplate.update(
@@ -97,6 +156,10 @@ class JdbcAdminModerationRepositoryTest {
     }
 
     private UUID insertPost(UUID authorId, String approvalStatus) {
+        return insertPost(authorId, approvalStatus, "Moderation test post", "Moderation test description");
+    }
+
+    private UUID insertPost(UUID authorId, String approvalStatus, String title, String description) {
         UUID postId = UUID.randomUUID();
         jdbcTemplate.update(
                 """
@@ -128,8 +191,8 @@ class JdbcAdminModerationRepositoryTest {
                 """,
                 postId,
                 authorId,
-                "Moderation test post",
-                "Moderation test description",
+                title,
+                description,
                 null,
                 null,
                 null,
@@ -146,6 +209,10 @@ class JdbcAdminModerationRepositoryTest {
     }
 
     private UUID insertPaper(String approvalStatus) {
+        return insertPaper(approvalStatus, "Moderation test paper", "Abstract");
+    }
+
+    private UUID insertPaper(String approvalStatus, String title, String paperAbstract) {
         UUID paperId = UUID.randomUUID();
         jdbcTemplate.update(
                 """
@@ -167,8 +234,8 @@ class JdbcAdminModerationRepositoryTest {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """,
                 paperId,
-                "Moderation test paper",
-                "Abstract",
+                title,
+                paperAbstract,
                 "https://example.com/paper.pdf",
                 2026,
                 "Conference",

@@ -14,6 +14,7 @@ import com.hus.mim_backend.shared.constants.RoleNames;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +26,7 @@ import java.util.UUID;
 @Component
 public class JdbcAdminModerationRepository implements AdminModerationRepository {
 
-    private static final String SELECT_PENDING_POSTS_SQL = """
+    private static final String SELECT_POSTS_BASE_SQL = """
             SELECT p.id,
                    p.title,
                    p.description,
@@ -58,8 +59,11 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             LEFT JOIN companies c ON c.id = p.author_id
             LEFT JOIN students s ON s.id = p.author_id
             LEFT JOIN lecturers l ON l.id = p.author_id
-            WHERE COALESCE(p.approval_status, 'PENDING') = ?
-            ORDER BY p.created_at DESC
+            """;
+
+    private static final String COUNT_POSTS_BASE_SQL = """
+            SELECT COUNT(*)
+            FROM posts p
             """;
 
     private static final String SELECT_POST_LINKED_RESEARCH_SQL = """
@@ -72,7 +76,7 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             ORDER BY rp.created_at DESC, rp.title ASC
             """;
 
-    private static final String SELECT_PENDING_PAPERS_SQL = """
+    private static final String SELECT_PAPERS_BASE_SQL = """
             SELECT rp.id,
                    rp.title,
                    rp.category,
@@ -102,8 +106,11 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
                 ORDER BY pa.is_main_author DESC, pa.author_order ASC
                 LIMIT 1
             ) author_info ON TRUE
-            WHERE COALESCE(rp.approval_status, 'PENDING') = ?
-            ORDER BY rp.created_at DESC
+            """;
+
+    private static final String COUNT_PAPERS_BASE_SQL = """
+            SELECT COUNT(*)
+            FROM research_papers rp
             """;
 
     private static final String SELECT_PAPER_AUTHORS_SQL = """
@@ -140,6 +147,16 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
               AND COALESCE(approval_status, 'PENDING') = 'PENDING'
             """;
 
+    private static final String DELETE_POST_SQL = """
+            DELETE FROM posts
+            WHERE id = ?
+            """;
+
+    private static final String DELETE_PAPER_SQL = """
+            DELETE FROM research_papers
+            WHERE id = ?
+            """;
+
     private static final String INSERT_MODERATION_LOG_SQL = """
             INSERT INTO moderation_logs (id, moderator_id, target_type, target_id, action, comment, created_at)
             VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -168,8 +185,25 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
     }
 
     @Override
-    public List<ModerationPostResponse> findPostsByStatus(String status) {
-        return jdbcTemplate.query(SELECT_PENDING_POSTS_SQL, (rs, rowNum) -> {
+    public List<ModerationPostResponse> findPostsByStatus(String status, String keyword, int limit, int offset) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(SELECT_POSTS_BASE_SQL)
+                .append("\nWHERE COALESCE(p.approval_status, 'PENDING') = ?");
+        params.add(status);
+
+        if (keyword != null) {
+            sql.append("\n  AND (LOWER(p.title) LIKE ? OR LOWER(COALESCE(p.description, '')) LIKE ?)");
+            String likeKeyword = buildLikePattern(keyword);
+            params.add(likeKeyword);
+            params.add(likeKeyword);
+        }
+
+        sql.append("\nORDER BY p.created_at DESC")
+                .append("\nLIMIT ? OFFSET ?");
+        params.add(limit);
+        params.add(offset);
+
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
             ModerationPostResponse item = new ModerationPostResponse();
             item.setId(rs.getObject("id", UUID.class));
             item.setTitle(rs.getString("title"));
@@ -195,12 +229,47 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             item.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             item.setUpdatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("updated_at")));
             return item;
-        }, status);
+        }, params.toArray());
     }
 
     @Override
-    public List<ModerationPaperResponse> findPapersByStatus(String status) {
-        return jdbcTemplate.query(SELECT_PENDING_PAPERS_SQL, (rs, rowNum) -> {
+    public long countPostsByStatus(String status, String keyword) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(COUNT_POSTS_BASE_SQL)
+                .append("\nWHERE COALESCE(p.approval_status, 'PENDING') = ?");
+        params.add(status);
+
+        if (keyword != null) {
+            sql.append("\n  AND (LOWER(p.title) LIKE ? OR LOWER(COALESCE(p.description, '')) LIKE ?)");
+            String likeKeyword = buildLikePattern(keyword);
+            params.add(likeKeyword);
+            params.add(likeKeyword);
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
+        return count == null ? 0L : count;
+    }
+
+    @Override
+    public List<ModerationPaperResponse> findPapersByStatus(String status, String keyword, int limit, int offset) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(SELECT_PAPERS_BASE_SQL)
+                .append("\nWHERE COALESCE(rp.approval_status, 'PENDING') = ?");
+        params.add(status);
+
+        if (keyword != null) {
+            sql.append("\n  AND (LOWER(rp.title) LIKE ? OR LOWER(COALESCE(rp.abstract, '')) LIKE ?)");
+            String likeKeyword = buildLikePattern(keyword);
+            params.add(likeKeyword);
+            params.add(likeKeyword);
+        }
+
+        sql.append("\nORDER BY rp.created_at DESC")
+                .append("\nLIMIT ? OFFSET ?");
+        params.add(limit);
+        params.add(offset);
+
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
             ModerationPaperResponse item = new ModerationPaperResponse();
             item.setId(rs.getObject("id", UUID.class));
             item.setTitle(rs.getString("title"));
@@ -217,7 +286,25 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             item.setCreatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("created_at")));
             item.setUpdatedAt(JdbcMappingUtils.toLocalDateTime(rs.getTimestamp("updated_at")));
             return item;
-        }, status);
+        }, params.toArray());
+    }
+
+    @Override
+    public long countPapersByStatus(String status, String keyword) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(COUNT_PAPERS_BASE_SQL)
+                .append("\nWHERE COALESCE(rp.approval_status, 'PENDING') = ?");
+        params.add(status);
+
+        if (keyword != null) {
+            sql.append("\n  AND (LOWER(rp.title) LIKE ? OR LOWER(COALESCE(rp.abstract, '')) LIKE ?)");
+            String likeKeyword = buildLikePattern(keyword);
+            params.add(likeKeyword);
+            params.add(likeKeyword);
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
+        return count == null ? 0L : count;
     }
 
     private List<ModerationResearchPaperLinkResponse> fetchLinkedResearch(UUID postId) {
@@ -239,6 +326,10 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
             author.setAuthorOrder(rs.getInt("author_order"));
             return author;
         }, paperId);
+    }
+
+    private String buildLikePattern(String keyword) {
+        return "%" + keyword.trim().toLowerCase() + "%";
     }
 
     private Map<String, Object> parseDisplayInfo(String raw) {
@@ -270,6 +361,16 @@ public class JdbcAdminModerationRepository implements AdminModerationRepository 
     @Override
     public int updatePaperModeration(UUID paperId, String approvalStatus, UUID moderatorId, String moderationComment) {
         return jdbcTemplate.update(UPDATE_PAPER_MODERATION_SQL, approvalStatus, moderatorId, moderationComment, paperId);
+    }
+
+    @Override
+    public int deletePostById(UUID postId) {
+        return jdbcTemplate.update(DELETE_POST_SQL, postId);
+    }
+
+    @Override
+    public int deletePaperById(UUID paperId) {
+        return jdbcTemplate.update(DELETE_PAPER_SQL, paperId);
     }
 
     @Override

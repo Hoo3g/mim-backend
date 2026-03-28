@@ -5,6 +5,10 @@ import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.infrastructure.adapter.security.JwtAuthenticationFilter;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.RbacPermissions;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
@@ -19,7 +23,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Arrays;
 import java.util.List;
@@ -32,9 +35,13 @@ import java.util.List;
 @EnableMethodSecurity // enables @PreAuthorize on controllers
 public class SecurityConfig {
 
+    private static final ObjectMapper SECURITY_OBJECT_MAPPER = JsonMapper.builder()
+            .addModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .build();
+
     private final TokenProvider tokenProvider;
     private final ManageRbacUseCase manageRbacUseCase;
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final List<String> allowedOrigins;
 
     public SecurityConfig(TokenProvider tokenProvider,
@@ -63,7 +70,7 @@ public class SecurityConfig {
                             response.setStatus(401);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    objectMapper.writeValueAsString(
+                                    SECURITY_OBJECT_MAPPER.writeValueAsString(
                                             ApiResponse.error("Authentication required", "UNAUTHORIZED")));
                         })
                         // JSON 403 when authenticated but insufficient role
@@ -71,7 +78,7 @@ public class SecurityConfig {
                             response.setStatus(403);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    objectMapper.writeValueAsString(
+                                    SECURITY_OBJECT_MAPPER.writeValueAsString(
                                             ApiResponse.error("Access denied: insufficient permissions", "FORBIDDEN")));
                         }))
 
