@@ -35,6 +35,11 @@ public class ResearchBookmarkJpaAdapter implements ResearchBookmarkRepository {
     }
 
     @Override
+    public void recordBookmarkOnce(UUID userId, UUID paperId) {
+        repository.insertBookmarkMetricIgnoreConflict(userId, paperId);
+    }
+
+    @Override
     public void deleteBookmark(UUID userId, UUID paperId) {
         repository.deleteByUserIdAndPaperId(userId, paperId);
     }

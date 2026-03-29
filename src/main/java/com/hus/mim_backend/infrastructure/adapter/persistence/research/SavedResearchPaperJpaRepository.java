@@ -23,6 +23,15 @@ public interface SavedResearchPaperJpaRepository extends JpaRepository<SavedRese
     @Modifying
     @Transactional
     @Query(value = """
+            INSERT INTO research_paper_unique_bookmarks (user_id, paper_id, created_at)
+            VALUES (:userId, :paperId, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, paper_id) DO NOTHING
+            """, nativeQuery = true)
+    void insertBookmarkMetricIgnoreConflict(@Param("userId") UUID userId, @Param("paperId") UUID paperId);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
             INSERT INTO saved_research_papers (user_id, paper_id, created_at)
             VALUES (:userId, :paperId, CURRENT_TIMESTAMP)
             ON CONFLICT (user_id, paper_id) DO NOTHING

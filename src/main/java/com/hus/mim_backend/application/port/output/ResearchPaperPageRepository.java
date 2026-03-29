@@ -11,7 +11,9 @@ import java.util.List;
 public interface ResearchPaperPageRepository {
     PagedResult<PaperResponse> findApprovedPapersPage(String normalizedKeyword,
                                                       String normalizedCategory,
+                                                      String normalizedPaperType,
                                                       List<String> normalizedResearchAreas,
+                                                      Integer publicationYear,
                                                       String metricSort,
                                                       int page,
                                                       int size);

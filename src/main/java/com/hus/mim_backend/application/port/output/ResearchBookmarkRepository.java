@@ -13,6 +13,8 @@ public interface ResearchBookmarkRepository {
 
     void saveBookmark(UUID userId, UUID paperId);
 
+    void recordBookmarkOnce(UUID userId, UUID paperId);
+
     void deleteBookmark(UUID userId, UUID paperId);
 
     List<ResearchBookmarkResponse> findBookmarksByUserId(UUID userId);

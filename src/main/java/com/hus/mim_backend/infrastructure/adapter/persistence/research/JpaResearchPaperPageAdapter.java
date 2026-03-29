@@ -42,11 +42,12 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
                    rp.journal_conference,
                    COALESCE(rp.research_area, 'Chưa phân loại') AS research_area,
                    rp.category,
+                   COALESCE(rp.paper_type, 'SCIENTIFIC_RESEARCH') AS paper_type,
                    COALESCE(rp.view_count, 0) AS view_count,
                    COALESCE(rp.download_count, 0) AS download_count,
                    (
                        SELECT COUNT(*)
-                       FROM saved_research_papers srp
+                       FROM research_paper_unique_bookmarks srp
                        WHERE srp.paper_id = rp.id
                    ) AS bookmark_count,
                    COALESCE(rp.approval_status, 'PENDING') AS approval_status,
@@ -77,7 +78,9 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
     @Override
     public PagedResult<PaperResponse> findApprovedPapersPage(String normalizedKeyword,
             String normalizedCategory,
+            String normalizedPaperType,
             List<String> normalizedResearchAreas,
+            Integer publicationYear,
             String metricSort,
             int page,
             int size) {
@@ -93,6 +96,11 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
             params.put("category", normalizedCategory);
         }
 
+        if (StringUtils.hasText(normalizedPaperType)) {
+            whereSql.append("\n  AND UPPER(COALESCE(rp.paper_type, 'SCIENTIFIC_RESEARCH')) = :paperType");
+            params.put("paperType", normalizedPaperType);
+        }
+
         if (normalizedResearchAreas != null && !normalizedResearchAreas.isEmpty()) {
             List<String> areaClauses = new ArrayList<>();
             for (int index = 0; index < normalizedResearchAreas.size(); index++) {
@@ -103,6 +111,11 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
             whereSql.append("\n  AND (")
                     .append(String.join(" OR ", areaClauses))
                     .append(")");
+        }
+
+        if (publicationYear != null) {
+            whereSql.append("\n  AND rp.publication_year = :publicationYear");
+            params.put("publicationYear", publicationYear);
         }
 
         if (StringUtils.hasText(normalizedKeyword)) {
@@ -198,13 +211,14 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
         response.setJournalConference(toStringValue(row[5]));
         response.setResearchArea(toStringValue(row[6]));
         response.setCategory(toStringValue(row[7]));
-        response.setViewCount(toInt(row[8]));
-        response.setDownloadCount(toInt(row[9]));
-        response.setBookmarkCount(toInt(row[10]));
-        response.setApprovalStatus(toStringValue(row[11]));
-        response.setModerationComment(toStringValue(row[12]));
-        response.setCreatedAt(toLocalDateTime(row[13]));
-        response.setUpdatedAt(toLocalDateTime(row[14]));
+        response.setPaperType(toStringValue(row[8]));
+        response.setViewCount(toInt(row[9]));
+        response.setDownloadCount(toInt(row[10]));
+        response.setBookmarkCount(toInt(row[11]));
+        response.setApprovalStatus(toStringValue(row[12]));
+        response.setModerationComment(toStringValue(row[13]));
+        response.setCreatedAt(toLocalDateTime(row[14]));
+        response.setUpdatedAt(toLocalDateTime(row[15]));
         return response;
     }
 

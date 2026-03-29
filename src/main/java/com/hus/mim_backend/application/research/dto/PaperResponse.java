@@ -20,6 +20,7 @@ public class PaperResponse {
     private String journalConference;
     private String researchArea;
     private String category;
+    private String paperType;
     private int viewCount;
     private int downloadCount;
     private int bookmarkCount;
@@ -59,6 +60,14 @@ public class PaperResponse {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getPaperType() {
+        return paperType;
+    }
+
+    public void setPaperType(String paperType) {
+        this.paperType = paperType;
     }
 
     public int getViewCount() {
