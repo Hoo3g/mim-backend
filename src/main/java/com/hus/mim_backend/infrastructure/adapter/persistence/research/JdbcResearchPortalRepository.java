@@ -25,7 +25,13 @@ import java.util.UUID;
  */
 @Component
 public class JdbcResearchPortalRepository implements ResearchPortalRepository {
-private static final String SELECT_PAPERS_BASE_SQL = """
+    private static final String BOOKMARK_COUNT_SQL = """
+                       SELECT COUNT(*)
+                       FROM research_paper_unique_bookmarks srp
+                       WHERE srp.paper_id = rp.id
+                   """;
+
+    private static final String SELECT_PAPERS_BASE_SQL = """
             SELECT rp.id,
                    rp.title,
                    rp.abstract AS abstract_text,
@@ -34,12 +40,11 @@ private static final String SELECT_PAPERS_BASE_SQL = """
                    rp.journal_conference,
                    COALESCE(rp.research_area, 'Chưa phân loại') AS research_area,
                    rp.category,
+                   COALESCE(rp.paper_type, 'SCIENTIFIC_RESEARCH') AS paper_type,
                    COALESCE(rp.view_count, 0) AS view_count,
                    COALESCE(rp.download_count, 0) AS download_count,
                    (
-                       SELECT COUNT(*)
-                       FROM saved_research_papers srp
-                       WHERE srp.paper_id = rp.id
+            """ + BOOKMARK_COUNT_SQL + """
                    ) AS bookmark_count,
                    COALESCE(rp.approval_status, 'PENDING') AS approval_status,
                    rp.moderation_comment,
@@ -146,9 +151,9 @@ private static final String SELECT_PAPERS_BASE_SQL = """
     private static final String INSERT_PAPER_SQL = """
             INSERT INTO research_papers (
                 id, title, abstract, pdf_url, publication_year,
-                journal_conference, research_area, category, created_at, updated_at
+                journal_conference, research_area, category, paper_type, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """;
 
     private static final String INSERT_PAPER_AUTHOR_SQL = """
@@ -171,6 +176,7 @@ private static final String SELECT_PAPERS_BASE_SQL = """
                 abstract = ?,
                 research_area = ?,
                 pdf_url = COALESCE(NULLIF(?, ''), pdf_url),
+                paper_type = ?,
                 approval_status = CASE
                     WHEN COALESCE(approval_status, 'PENDING') = 'REJECTED' THEN 'PENDING'
                     ELSE approval_status
@@ -198,11 +204,23 @@ private static final String SELECT_PAPERS_BASE_SQL = """
               )
             """;
 
+    private static final String INSERT_UNIQUE_VIEW_SQL = """
+            INSERT INTO research_paper_unique_views (user_id, paper_id, created_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, paper_id) DO NOTHING
+            """;
+
     private static final String INCREMENT_VIEW_COUNT_SQL = """
             UPDATE research_papers
             SET view_count = COALESCE(view_count, 0) + 1
             WHERE id = ?
               AND COALESCE(approval_status, 'PENDING') = 'APPROVED'
+            """;
+
+    private static final String INSERT_UNIQUE_DOWNLOAD_SQL = """
+            INSERT INTO research_paper_unique_downloads (user_id, paper_id, created_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, paper_id) DO NOTHING
             """;
 
     private static final String INCREMENT_DOWNLOAD_COUNT_SQL = """
@@ -222,6 +240,7 @@ private static final String SELECT_PAPERS_BASE_SQL = """
         response.setJournalConference(rs.getString("journal_conference"));
         response.setResearchArea(rs.getString("research_area"));
         response.setCategory(rs.getString("category"));
+        response.setPaperType(rs.getString("paper_type"));
         response.setViewCount(rs.getInt("view_count"));
         response.setDownloadCount(rs.getInt("download_count"));
         response.setBookmarkCount(rs.getInt("bookmark_count"));
@@ -323,14 +342,28 @@ private static final String SELECT_PAPERS_BASE_SQL = """
 
     @Override
     @Transactional
-    public int incrementApprovedPaperViewCount(UUID paperId) {
-        return jdbcTemplate.update(INCREMENT_VIEW_COUNT_SQL, paperId);
+    public boolean registerApprovedPaperView(UUID userId, UUID paperId) {
+        if (!existsApprovedPaperRecord(paperId)) {
+            return false;
+        }
+        int inserted = jdbcTemplate.update(INSERT_UNIQUE_VIEW_SQL, userId, paperId);
+        if (inserted == 0) {
+            return true;
+        }
+        return jdbcTemplate.update(INCREMENT_VIEW_COUNT_SQL, paperId) > 0;
     }
 
     @Override
     @Transactional
-    public int incrementApprovedPaperDownloadCount(UUID paperId) {
-        return jdbcTemplate.update(INCREMENT_DOWNLOAD_COUNT_SQL, paperId);
+    public boolean registerApprovedPaperDownload(UUID userId, UUID paperId) {
+        if (!existsApprovedPaperRecord(paperId)) {
+            return false;
+        }
+        int inserted = jdbcTemplate.update(INSERT_UNIQUE_DOWNLOAD_SQL, userId, paperId);
+        if (inserted == 0) {
+            return true;
+        }
+        return jdbcTemplate.update(INCREMENT_DOWNLOAD_COUNT_SQL, paperId) > 0;
     }
 
     @Override
@@ -413,7 +446,8 @@ private static final String SELECT_PAPERS_BASE_SQL = """
             int publicationYear,
             String journalConference,
             String researchArea,
-            String category) {
+            String category,
+            String paperType) {
         UUID paperId = UUID.randomUUID();
         jdbcTemplate.update(INSERT_PAPER_SQL,
                 paperId,
@@ -423,7 +457,8 @@ private static final String SELECT_PAPERS_BASE_SQL = """
                 publicationYear,
                 journalConference,
                 researchArea,
-                category);
+                category,
+                paperType);
 
         UUID studentId = lecturerAuthor ? null : userId;
         UUID lecturerId = lecturerAuthor ? userId : null;
@@ -443,14 +478,24 @@ private static final String SELECT_PAPERS_BASE_SQL = """
     }
 
     @Override
-    public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea) {
-        return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperId);
+    public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea, String paperType) {
+        return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperType, paperId);
     }
 
     @Override
     @Transactional
     public boolean deletePaperByOwner(UUID paperId, UUID userId) {
         return jdbcTemplate.update(DELETE_PAPER_BY_OWNER_SQL, paperId, userId, userId) > 0;
+    }
+
+    private boolean existsApprovedPaperRecord(UUID paperId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM research_papers
+                WHERE id = ?
+                  AND COALESCE(approval_status, 'PENDING') = 'APPROVED'
+                """, Integer.class, paperId);
+        return count != null && count > 0;
     }
 
     private record PaperAuthorRow(UUID paperId, PaperResponse.PaperAuthorResponse author) {}

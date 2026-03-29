@@ -104,7 +104,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/research-papers/*/views",
                                 "/api/v1/research-papers/*/downloads")
-                        .permitAll()
+                        .authenticated()
                         .requestMatchers("/api/v1/research-papers/my").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/storage/profile-cvs").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/storage/avatars").authenticated()

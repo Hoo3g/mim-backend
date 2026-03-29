@@ -26,13 +26,17 @@ public class PublicResearchPaperPageQueryServiceImpl implements QueryPublicResea
     @Override
     public PagedResult<PaperResponse> getPapersPage(String keyword,
             String category,
+            String paperType,
             List<String> researchAreas,
+            Integer publicationYear,
             String metricSort,
             int page,
             int size) {
         String normalizedKeyword = normalize(keyword);
         String normalizedCategory = normalize(category);
+        String normalizedPaperType = normalizePaperType(paperType);
         List<String> normalizedResearchAreas = normalizeDistinct(researchAreas);
+        Integer normalizedPublicationYear = normalizePublicationYear(publicationYear);
         String normalizedMetric = normalizeMetric(metricSort);
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
@@ -43,10 +47,19 @@ public class PublicResearchPaperPageQueryServiceImpl implements QueryPublicResea
         return repository.findApprovedPapersPage(
                 normalizedKeyword,
                 normalizedCategory,
+                normalizedPaperType,
                 normalizedResearchAreas,
+                normalizedPublicationYear,
                 normalizedMetric,
                 safePage,
                 safeSize);
+    }
+
+    private Integer normalizePublicationYear(Integer publicationYear) {
+        if (publicationYear == null || publicationYear <= 0) {
+            return null;
+        }
+        return publicationYear;
     }
 
     private List<String> normalizeDistinct(List<String> values) {
@@ -69,6 +82,16 @@ public class PublicResearchPaperPageQueryServiceImpl implements QueryPublicResea
         return switch (normalized) {
             case "views", "downloads", "bookmarks" -> normalized;
             default -> "recent";
+        };
+    }
+
+    private String normalizePaperType(String paperType) {
+        String normalized = normalize(paperType);
+        return switch (normalized) {
+            case "", "all" -> "";
+            case "scientific_research", "scientific research", "nghien cuu khoa hoc" -> "SCIENTIFIC_RESEARCH";
+            case "graduation_thesis", "graduation thesis", "khoa luan tot nghiep" -> "GRADUATION_THESIS";
+            default -> "";
         };
     }
 

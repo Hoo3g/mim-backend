@@ -30,6 +30,7 @@ public class ResearchBookmarkService implements ResearchBookmarkUseCase {
         if (!repository.existsApprovedPaper(paperId)) {
             throw new DomainException("Research paper not found or not approved");
         }
+        repository.recordBookmarkOnce(userId, paperId);
         repository.saveBookmark(userId, paperId);
     }
 

@@ -10,6 +10,7 @@ public class UpsertPaperRequest {
     private String abstractText;
     private String pdfUrl;
     private String researchArea;
+    private String paperType;
 
     public String getTitle() {
         return title;
@@ -43,5 +44,13 @@ public class UpsertPaperRequest {
 
     public void setResearchArea(String researchArea) {
         this.researchArea = researchArea;
+    }
+
+    public String getPaperType() {
+        return paperType;
+    }
+
+    public void setPaperType(String paperType) {
+        this.paperType = paperType;
     }
 }

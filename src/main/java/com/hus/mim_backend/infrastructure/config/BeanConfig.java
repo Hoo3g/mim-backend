@@ -5,6 +5,7 @@ import com.hus.mim_backend.application.auth.service.VerifiedAccountServiceImpl;
 import com.hus.mim_backend.application.auth.usecase.GoogleLoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LogoutUseCase;
+import com.hus.mim_backend.application.auth.usecase.AdminProvisionUserUseCase;
 import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
 import com.hus.mim_backend.application.auth.usecase.ResendEmailVerificationUseCase;
@@ -130,6 +131,11 @@ public class BeanConfig {
 
     @Bean
     public RegisterUseCase registerUseCase(AuthServiceImpl authService) {
+        return authService;
+    }
+
+    @Bean
+    public AdminProvisionUserUseCase adminProvisionUserUseCase(AuthServiceImpl authService) {
         return authService;
     }
 

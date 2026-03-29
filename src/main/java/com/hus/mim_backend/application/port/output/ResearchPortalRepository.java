@@ -23,9 +23,9 @@ public interface ResearchPortalRepository {
 
     Optional<PaperResponse> findPaperById(UUID paperId);
 
-    int incrementApprovedPaperViewCount(UUID paperId);
+    boolean registerApprovedPaperView(UUID userId, UUID paperId);
 
-    int incrementApprovedPaperDownloadCount(UUID paperId);
+    boolean registerApprovedPaperDownload(UUID userId, UUID paperId);
 
     List<PaperResponse.PaperAuthorResponse> findAuthorsByPaperId(UUID paperId);
 
@@ -51,11 +51,12 @@ public interface ResearchPortalRepository {
                                    int publicationYear,
                                    String journalConference,
                                    String researchArea,
-                                   String category);
+                                   String category,
+                                   String paperType);
 
     boolean isOwner(UUID paperId, UUID userId);
 
-    int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea);
+    int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea, String paperType);
 
     boolean deletePaperByOwner(UUID paperId, UUID userId);
 }

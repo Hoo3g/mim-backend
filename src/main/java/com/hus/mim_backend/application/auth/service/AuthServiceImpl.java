@@ -9,6 +9,7 @@ import com.hus.mim_backend.application.auth.model.GoogleUserInfo;
 import com.hus.mim_backend.application.auth.usecase.GoogleLoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LoginUseCase;
 import com.hus.mim_backend.application.auth.usecase.LogoutUseCase;
+import com.hus.mim_backend.application.auth.usecase.AdminProvisionUserUseCase;
 import com.hus.mim_backend.application.auth.usecase.RefreshTokenUseCase;
 import com.hus.mim_backend.application.auth.usecase.RegisterUseCase;
 import com.hus.mim_backend.application.auth.usecase.ResendEmailVerificationUseCase;
@@ -40,7 +41,7 @@ import java.util.regex.Pattern;
  * NOTE: No @Service or @Transactional here - framework agnostic
  */
 public class AuthServiceImpl
-        implements LoginUseCase, RegisterUseCase, RefreshTokenUseCase, LogoutUseCase, GoogleLoginUseCase,
+        implements LoginUseCase, RegisterUseCase, AdminProvisionUserUseCase, RefreshTokenUseCase, LogoutUseCase, GoogleLoginUseCase,
         VerifyEmailUseCase, ResendEmailVerificationUseCase {
 
     private static final Set<String> ALLOWED_USER_TYPES = Set.of("STUDENT", "LECTURER", "COMPANY", "ADMIN");
@@ -93,62 +94,12 @@ public class AuthServiceImpl
 
     @Override
     public UserResponse register(RegisterRequest request) {
-        if (request == null || request.getEmail() == null || request.getPassword() == null) {
-            throw new DomainException("Email and password are required");
-        }
+        return registerInternal(request, RegistrationMode.SELF_SERVICE);
+    }
 
-        Email email = new Email(request.getEmail());
-        String normalizedUserType = normalizeUserType(request.getUserType());
-        String normalizedStudentCode = null;
-        LecturerRegistration lecturerRegistration = null;
-        String companyRegistrationName = null;
-        String registrationDisplayName = normalizeText(request.getFullName());
-
-        if (userRepository.existsByEmail(email)) {
-            throw new DomainException("Email already in use");
-        }
-
-        if ("STUDENT".equals(normalizedUserType)) {
-            normalizedStudentCode = validateStudentCode(request.getStudentId(), true);
-            if (userRepository.existsByStudentCode(normalizedStudentCode)) {
-                throw new DomainException("Student code already in use");
-            }
-        } else if ("LECTURER".equals(normalizedUserType)) {
-            lecturerRegistration = validateLecturerRegistration(request.getFullName(), request.getTitle());
-        } else if ("COMPANY".equals(normalizedUserType)) {
-            companyRegistrationName = validateCompanyRegistration(request.getCompanyName(), request.getFullName());
-            registrationDisplayName = companyRegistrationName;
-        }
-
-        String encryptedPassword = passwordEncoder.encode(request.getPassword());
-
-        User newUser = User.createNew(email, encryptedPassword, normalizedUserType, AccountStatus.PENDING);
-        newUser.setFullName(registrationDisplayName);
-
-        User savedUser = userRepository.save(newUser);
-
-        if (normalizedStudentCode != null) {
-            try {
-                userRepository.upsertStudentCode(savedUser.getId(), normalizedStudentCode);
-            } catch (RuntimeException ex) {
-                throw new DomainException("Student code already in use");
-            }
-        }
-
-        if (lecturerRegistration != null) {
-            userRepository.upsertLecturerRegistration(
-                    savedUser.getId(),
-                    lecturerRegistration.firstName(),
-                    lecturerRegistration.lastName(),
-                    lecturerRegistration.title());
-        }
-
-        if (companyRegistrationName != null) {
-            userRepository.upsertCompanyRegistration(savedUser.getId(), companyRegistrationName, null);
-        }
-
-        issueEmailVerification(savedUser);
-        return UserResponse.fromDomain(savedUser);
+    @Override
+    public UserResponse createUserByAdmin(RegisterRequest request) {
+        return registerInternal(request, RegistrationMode.ADMIN_PROVISIONED);
     }
 
     @Override
@@ -463,6 +414,86 @@ public class AuthServiceImpl
         return normalizeUserType(userType);
     }
 
+    private UserResponse registerInternal(RegisterRequest request, RegistrationMode registrationMode) {
+        if (request == null || request.getEmail() == null || request.getPassword() == null) {
+            throw new DomainException("Email and password are required");
+        }
+
+        Email email = new Email(request.getEmail());
+        String normalizedUserType = normalizeUserType(request.getUserType());
+        validateRegistrationMode(normalizedUserType, registrationMode);
+
+        String normalizedStudentCode = null;
+        LecturerRegistration lecturerRegistration = null;
+        String companyRegistrationName = null;
+        String registrationDisplayName = normalizeText(request.getFullName());
+        AccountStatus initialStatus = resolveInitialAccountStatus(registrationMode);
+
+        if (userRepository.existsByEmail(email)) {
+            throw new DomainException("Email already in use");
+        }
+
+        if ("STUDENT".equals(normalizedUserType)) {
+            normalizedStudentCode = validateStudentCode(request.getStudentId(), true);
+            if (userRepository.existsByStudentCode(normalizedStudentCode)) {
+                throw new DomainException("Student code already in use");
+            }
+        } else if ("LECTURER".equals(normalizedUserType)) {
+            lecturerRegistration = validateLecturerRegistration(request.getFullName(), request.getTitle());
+        } else if ("COMPANY".equals(normalizedUserType)) {
+            companyRegistrationName = validateCompanyRegistration(request.getCompanyName(), request.getFullName());
+            registrationDisplayName = companyRegistrationName;
+        }
+
+        String encryptedPassword = passwordEncoder.encode(request.getPassword());
+
+        User newUser = User.createNew(email, encryptedPassword, normalizedUserType, initialStatus);
+        newUser.setFullName(registrationDisplayName);
+
+        User savedUser = userRepository.save(newUser);
+
+        if (normalizedStudentCode != null) {
+            try {
+                userRepository.upsertStudentCode(savedUser.getId(), normalizedStudentCode);
+            } catch (RuntimeException ex) {
+                throw new DomainException("Student code already in use");
+            }
+        }
+
+        if (lecturerRegistration != null) {
+            userRepository.upsertLecturerRegistration(
+                    savedUser.getId(),
+                    lecturerRegistration.firstName(),
+                    lecturerRegistration.lastName(),
+                    lecturerRegistration.title());
+        }
+
+        if (companyRegistrationName != null) {
+            userRepository.upsertCompanyRegistration(savedUser.getId(), companyRegistrationName, null);
+        }
+
+        if (registrationMode == RegistrationMode.SELF_SERVICE) {
+            issueEmailVerification(savedUser);
+        }
+        return UserResponse.fromDomain(savedUser);
+    }
+
+    private void validateRegistrationMode(String userType, RegistrationMode registrationMode) {
+        if (registrationMode == RegistrationMode.SELF_SERVICE && "ADMIN".equals(userType)) {
+            throw new DomainException("Unsupported user type: ADMIN");
+        }
+
+        if (registrationMode == RegistrationMode.ADMIN_PROVISIONED
+                && !"STUDENT".equals(userType)
+                && !"COMPANY".equals(userType)) {
+            throw new DomainException("Admin can only create student or company accounts");
+        }
+    }
+
+    private AccountStatus resolveInitialAccountStatus(RegistrationMode registrationMode) {
+        return registrationMode == RegistrationMode.ADMIN_PROVISIONED ? AccountStatus.APPROVED : AccountStatus.PENDING;
+    }
+
     private GoogleOnboardingDetails resolveGoogleOnboardingDetails(GoogleLoginRequest request, UUID currentUserId) {
         String userType = normalizeExplicitUserType(request == null ? null : request.getUserType());
         if (userType == null) {
@@ -626,5 +657,10 @@ public class AuthServiceImpl
             LecturerRegistration lecturerRegistration,
             String companyName,
             String companyWebsite) {
+    }
+
+    private enum RegistrationMode {
+        SELF_SERVICE,
+        ADMIN_PROVISIONED
     }
 }

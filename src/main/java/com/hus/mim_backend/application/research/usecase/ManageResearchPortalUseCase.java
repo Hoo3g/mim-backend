@@ -22,9 +22,9 @@ public interface ManageResearchPortalUseCase {
 
     Optional<PaperResponse> getApprovedPaperById(UUID paperId);
 
-    boolean trackApprovedPaperView(UUID paperId);
+    boolean trackApprovedPaperView(String currentUserEmail, UUID paperId);
 
-    boolean trackApprovedPaperDownload(UUID paperId);
+    boolean trackApprovedPaperDownload(String currentUserEmail, UUID paperId);
 
     boolean canAccessResearchPdf(String objectKey);
 

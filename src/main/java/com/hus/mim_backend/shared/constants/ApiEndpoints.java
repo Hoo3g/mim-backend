@@ -16,6 +16,7 @@ public class ApiEndpoints {
 
     // Admin Endpoints
     public static final String ADMIN = API_V1 + "/admin";
+    public static final String ADMIN_USERS = ADMIN + "/users";
     public static final String ADMIN_CONTENT = ADMIN + "/content";
     public static final String MODERATION = "/moderation";
     public static final String MODERATION_POSTS = "/posts";

@@ -58,14 +58,18 @@ public class ResearchPaperController {
     public ResponseEntity<ApiResponse<PagedResult<PaperResponse>>> getPagedPapers(
             @RequestParam(name = "q", required = false) String keyword,
             @RequestParam(name = "type", required = false) String category,
+            @RequestParam(name = "paperType", required = false) String paperType,
             @RequestParam(name = "specialization", required = false) List<String> researchAreas,
+            @RequestParam(name = "year", required = false) Integer publicationYear,
             @RequestParam(name = "metric", required = false) String metricSort,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
         PagedResult<PaperResponse> papers = queryPublicResearchPapersPageUseCase.getPapersPage(
                 keyword,
                 category,
+                paperType,
                 researchAreas,
+                publicationYear,
                 metricSort,
                 page,
                 size);
@@ -88,8 +92,9 @@ public class ResearchPaperController {
     }
 
     @PostMapping(ApiEndpoints.RESEARCH_TRACK_VIEW)
-    public ResponseEntity<ApiResponse<Void>> trackPaperView(@PathVariable UUID paperId) {
-        if (!manageResearchPortalUseCase.trackApprovedPaperView(paperId)) {
+    public ResponseEntity<ApiResponse<Void>> trackPaperView(@PathVariable UUID paperId, Authentication authentication) {
+        String currentEmail = resolveAuthenticatedEmail(authentication);
+        if (!manageResearchPortalUseCase.trackApprovedPaperView(currentEmail, paperId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Research paper not found", "PAPER_NOT_FOUND"));
         }
@@ -97,8 +102,9 @@ public class ResearchPaperController {
     }
 
     @PostMapping(ApiEndpoints.RESEARCH_TRACK_DOWNLOAD)
-    public ResponseEntity<ApiResponse<Void>> trackPaperDownload(@PathVariable UUID paperId) {
-        if (!manageResearchPortalUseCase.trackApprovedPaperDownload(paperId)) {
+    public ResponseEntity<ApiResponse<Void>> trackPaperDownload(@PathVariable UUID paperId, Authentication authentication) {
+        String currentEmail = resolveAuthenticatedEmail(authentication);
+        if (!manageResearchPortalUseCase.trackApprovedPaperDownload(currentEmail, paperId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Research paper not found", "PAPER_NOT_FOUND"));
         }

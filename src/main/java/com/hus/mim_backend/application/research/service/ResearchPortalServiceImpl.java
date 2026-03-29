@@ -38,6 +38,8 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
     private static final String ROLE_LECTURER = "LECTURER";
     private static final String ROLE_STUDENT = "STUDENT";
+    private static final String PAPER_TYPE_SCIENTIFIC_RESEARCH = "SCIENTIFIC_RESEARCH";
+    private static final String PAPER_TYPE_GRADUATION_THESIS = "GRADUATION_THESIS";
     private static final String DEFAULT_JOURNAL = "MIM Draft";
     private static final String PUBLIC_RESEARCH_PDF_PREFIX = "/api/public/storage/research-pdfs/";
     private static final String LEGACY_RESEARCH_PDF_PREFIX = "/api/v1/storage/research-pdfs/";
@@ -106,8 +108,9 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
                     key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
     })
-    public boolean trackApprovedPaperView(UUID paperId) {
-        return repository.incrementApprovedPaperViewCount(paperId) > 0;
+    public boolean trackApprovedPaperView(String currentUserEmail, UUID paperId) {
+        UUID userId = resolveCurrentUserId(currentUserEmail);
+        return repository.registerApprovedPaperView(userId, paperId);
     }
 
     @Override
@@ -116,8 +119,9 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
                     key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
     })
-    public boolean trackApprovedPaperDownload(UUID paperId) {
-        return repository.incrementApprovedPaperDownloadCount(paperId) > 0;
+    public boolean trackApprovedPaperDownload(String currentUserEmail, UUID paperId) {
+        UUID userId = resolveCurrentUserId(currentUserEmail);
+        return repository.registerApprovedPaperDownload(userId, paperId);
     }
 
     @Override
@@ -153,6 +157,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         String normalizedAbstract = request.getAbstractText().trim();
         String normalizedPdfUrl = normalizePdfUrl(request.getPdfUrl());
         String normalizedResearchArea = resolveActiveResearchArea(request.getResearchArea());
+        String normalizedPaperType = resolvePaperType(request.getPaperType());
         String category = authorRole;
 
         UUID paperId = repository.createPaperWithMainAuthor(
@@ -164,7 +169,8 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 Year.now().getValue(),
                 DEFAULT_JOURNAL,
                 normalizedResearchArea,
-                category);
+                category,
+                normalizedPaperType);
 
         PaperResponse response = repository.findPaperById(paperId)
                 .orElseThrow(() -> new DomainException("Research paper not found"));
@@ -216,7 +222,8 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 request.getTitle().trim(),
                 request.getAbstractText().trim(),
                 normalizePdfUrl(request.getPdfUrl()),
-                normalizedResearchArea);
+                normalizedResearchArea,
+                resolvePaperType(request.getPaperType()));
         if (updated == 0) {
             return UpdatePaperResult.notFound();
         }
@@ -336,6 +343,15 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         }
         return repository.findActiveResearchCategoryName(researchArea.trim())
                 .orElseThrow(() -> new DomainException("Research area is invalid or inactive"));
+    }
+
+    private String resolvePaperType(String paperType) {
+        String normalized = normalize(paperType);
+        return switch (normalized) {
+            case "", "scientific_research", "scientific research", "Nghiên cứu khoa học" -> PAPER_TYPE_SCIENTIFIC_RESEARCH;
+            case "graduation_thesis", "graduation thesis", "Khóa luận tốt nghiệp" -> PAPER_TYPE_GRADUATION_THESIS;
+            default -> throw new DomainException("paperType is invalid");
+        };
     }
 
     private List<String> normalizeDistinct(List<String> values) {
