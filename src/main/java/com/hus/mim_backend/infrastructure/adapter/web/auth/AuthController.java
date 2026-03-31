@@ -21,6 +21,7 @@ import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
@@ -49,13 +50,15 @@ public class AuthController {
     private final ResendEmailVerificationUseCase resendEmailVerificationUseCase;
     private final RefreshTokenCookieService refreshTokenCookieService;
     private final ManageRbacUseCase manageRbacUseCase;
+    private final boolean googleLoginEnabled;
 
     public AuthController(LoginUseCase loginUseCase, GoogleLoginUseCase googleLoginUseCase,
             RegisterUseCase registerUseCase, RefreshTokenUseCase refreshTokenUseCase,
             LogoutUseCase logoutUseCase, VerifyEmailUseCase verifyEmailUseCase,
             ResendEmailVerificationUseCase resendEmailVerificationUseCase,
             RefreshTokenCookieService refreshTokenCookieService,
-            ManageRbacUseCase manageRbacUseCase) {
+            ManageRbacUseCase manageRbacUseCase,
+            @Value("${app.auth.google-login.enabled:false}") boolean googleLoginEnabled) {
         this.loginUseCase = loginUseCase;
         this.googleLoginUseCase = googleLoginUseCase;
         this.registerUseCase = registerUseCase;
@@ -65,6 +68,7 @@ public class AuthController {
         this.resendEmailVerificationUseCase = resendEmailVerificationUseCase;
         this.refreshTokenCookieService = refreshTokenCookieService;
         this.manageRbacUseCase = manageRbacUseCase;
+        this.googleLoginEnabled = googleLoginEnabled;
     }
 
     @PostMapping(ApiEndpoints.LOGIN)
@@ -80,6 +84,9 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(
             @RequestBody GoogleLoginRequest request,
             HttpServletResponse response) {
+        if (!googleLoginEnabled) {
+            throw new DomainException("Google login is disabled");
+        }
         AuthResponse authResponse = googleLoginUseCase.loginWithGoogle(request);
         attachRefreshCookieAndSanitizeResponse(authResponse, response);
         return ResponseEntity.ok(ApiResponse.success(authResponse,
