@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.security.core.Authentication;
 
 import java.nio.charset.StandardCharsets;
@@ -227,30 +226,22 @@ public class ResearchStorageController {
 
     private String buildPublicFileUrl(String objectKey) {
         String encodedKey = UriUtils.encodePathSegment(objectKey, StandardCharsets.UTF_8);
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path(ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.RESEARCH_PDFS + "/" + encodedKey)
-                .toUriString();
+        return ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.RESEARCH_PDFS + "/" + encodedKey;
     }
 
     private String buildPublicHeroImageUrl(String objectKey) {
         String encodedKey = UriUtils.encodePathSegment(objectKey, StandardCharsets.UTF_8);
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path(ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.RESEARCH_HERO_IMAGES + "/" + encodedKey)
-                .toUriString();
+        return ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.RESEARCH_HERO_IMAGES + "/" + encodedKey;
     }
 
     private String buildPublicProfileCvUrl(String objectKey) {
         String encodedKey = UriUtils.encodePathSegment(objectKey, StandardCharsets.UTF_8);
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path(ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.PROFILE_CVS + "/" + encodedKey)
-                .toUriString();
+        return ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.PROFILE_CVS + "/" + encodedKey;
     }
 
     private String buildPublicAvatarUrl(String objectKey) {
         String encodedKey = UriUtils.encodePathSegment(objectKey, StandardCharsets.UTF_8);
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path(ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.AVATARS + "/" + encodedKey)
-                .toUriString();
+        return ApiEndpoints.PUBLIC_STORAGE + ApiEndpoints.AVATARS + "/" + encodedKey;
     }
 
     private ContentDisposition buildInlineContentDisposition(String filename) {
