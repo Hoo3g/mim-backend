@@ -79,7 +79,13 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             SELECT COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
                    %s AS author_name,
                    CASE
-                       WHEN UPPER(COALESCE(us.role, ul.role, '')) = 'ADMIN' THEN FALSE
+                       WHEN EXISTS (
+                           SELECT 1
+                           FROM user_roles ur
+                           JOIN roles r ON r.id = ur.role_id
+                           WHERE ur.user_id = COALESCE(pa.student_id, pa.lecturer_id)
+                             AND UPPER(r.name) = 'ADMIN'
+                       ) THEN FALSE
                        ELSE TRUE
                    END AS can_view_profile,
                    pa.is_main_author,
@@ -98,7 +104,13 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                    COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
                    %s AS author_name,
                    CASE
-                       WHEN UPPER(COALESCE(us.role, ul.role, '')) = 'ADMIN' THEN FALSE
+                       WHEN EXISTS (
+                           SELECT 1
+                           FROM user_roles ur
+                           JOIN roles r ON r.id = ur.role_id
+                           WHERE ur.user_id = COALESCE(pa.student_id, pa.lecturer_id)
+                             AND UPPER(r.name) = 'ADMIN'
+                       ) THEN FALSE
                        ELSE TRUE
                    END AS can_view_profile,
                    pa.is_main_author,
