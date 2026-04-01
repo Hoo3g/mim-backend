@@ -14,6 +14,7 @@ public class UpsertPaperRequest {
     private Integer publicationYear;
     private String journalConference;
     private String category;
+    private String authorName;
 
     public String getTitle() {
         return title;
@@ -79,5 +80,13 @@ public class UpsertPaperRequest {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
     }
 }

@@ -146,6 +146,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
         UUID userId = resolveCurrentUserId(currentUserEmail);
         ensureVerifiedPublisher(userId);
+        boolean isAdminPublisher = repository.hasRole(userId, ROLE_ADMIN);
         String authorRole = resolveResearchAuthorRole(userId, request.getCategory());
         boolean isLecturer = ROLE_LECTURER.equals(authorRole);
         if (isLecturer) {
@@ -162,10 +163,14 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         int publicationYear = resolvePublicationYear(request.getPublicationYear());
         String journalConference = resolveJournalConference(request.getJournalConference());
         String category = authorRole;
+        String authorNameOverride = isAdminPublisher ? resolveAuthorNameOverride(userId, request.getAuthorName()) : null;
+        String approvalStatus = isAdminPublisher ? "APPROVED" : "PENDING";
+        UUID moderatorId = isAdminPublisher ? userId : null;
 
         UUID paperId = repository.createPaperWithMainAuthor(
                 userId,
                 isLecturer,
+                authorNameOverride,
                 normalizedTitle,
                 normalizedAbstract,
                 normalizedPdfUrl,
@@ -173,20 +178,22 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 journalConference,
                 normalizedResearchArea,
                 category,
-                normalizedPaperType);
+                normalizedPaperType,
+                approvalStatus,
+                moderatorId);
 
         PaperResponse response = repository.findPaperById(paperId)
                 .orElseThrow(() -> new DomainException("Research paper not found"));
         loadAuthors(response);
 
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+        if (!"APPROVED".equals(approvalStatus) && TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
                     sendPendingNotification(request.getTitle(), currentUserEmail, paperId);
                 }
             });
-        } else {
+        } else if (!"APPROVED".equals(approvalStatus)) {
             sendPendingNotification(request.getTitle(), currentUserEmail, paperId);
         }
 
@@ -334,6 +341,24 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             return DEFAULT_JOURNAL;
         }
         return journalConference.trim();
+    }
+
+    private String resolveAuthorNameOverride(UUID userId, String requestedAuthorName) {
+        if (StringUtils.hasText(requestedAuthorName)) {
+            return requestedAuthorName.trim();
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new DomainException("Authenticated user is not found"));
+        if (StringUtils.hasText(user.getFullName())) {
+            return user.getFullName().trim();
+        }
+        if (user.getEmail() != null && StringUtils.hasText(user.getEmail().value())) {
+            String email = user.getEmail().value().trim();
+            int atIndex = email.indexOf('@');
+            return atIndex > 0 ? email.substring(0, atIndex) : email;
+        }
+        return "Unknown";
     }
 
     private boolean isAllowedResearchPdfUrl(String value) {

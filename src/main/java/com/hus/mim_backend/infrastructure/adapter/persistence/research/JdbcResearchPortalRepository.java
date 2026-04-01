@@ -77,7 +77,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
 
     private static final String SELECT_AUTHORS_BY_PAPER_SQL = """
             SELECT COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
-                   %s AS author_name,
+                   COALESCE(NULLIF(pa.author_name_override, ''), %s) AS author_name,
                    CASE
                        WHEN EXISTS (
                            SELECT 1
@@ -102,7 +102,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     private static final String SELECT_AUTHORS_BY_PAPER_IDS_SQL = """
             SELECT pa.paper_id,
                    COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
-                   %s AS author_name,
+                   COALESCE(NULLIF(pa.author_name_override, ''), %s) AS author_name,
                    CASE
                        WHEN EXISTS (
                            SELECT 1
@@ -171,16 +171,16 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     private static final String INSERT_PAPER_SQL = """
             INSERT INTO research_papers (
                 id, title, abstract, pdf_url, publication_year,
-                journal_conference, research_area, category, paper_type, created_at, updated_at
+                journal_conference, research_area, category, paper_type, approval_status, moderator_id, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """;
 
     private static final String INSERT_PAPER_AUTHOR_SQL = """
             INSERT INTO paper_authors (
-                id, paper_id, student_id, lecturer_id, is_main_author, author_order
+                id, paper_id, student_id, lecturer_id, author_name_override, is_main_author, author_order
             )
-            VALUES (?, ?, ?, ?, TRUE, 1)
+            VALUES (?, ?, ?, ?, ?, TRUE, 1)
             """;
 
     private static final String EXISTS_MY_PAPER_SQL = """
@@ -464,6 +464,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     @Transactional
     public UUID createPaperWithMainAuthor(UUID userId,
             boolean lecturerAuthor,
+            String authorNameOverride,
             String title,
             String abstractText,
             String pdfUrl,
@@ -471,7 +472,9 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             String journalConference,
             String researchArea,
             String category,
-            String paperType) {
+            String paperType,
+            String approvalStatus,
+            UUID moderatorId) {
         UUID paperId = UUID.randomUUID();
         jdbcTemplate.update(INSERT_PAPER_SQL,
                 paperId,
@@ -482,7 +485,9 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                 journalConference,
                 researchArea,
                 category,
-                paperType);
+                paperType,
+                approvalStatus,
+                moderatorId);
 
         UUID studentId = lecturerAuthor ? null : userId;
         UUID lecturerId = lecturerAuthor ? userId : null;
@@ -490,7 +495,8 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                 UUID.randomUUID(),
                 paperId,
                 studentId,
-                lecturerId);
+                lecturerId,
+                authorNameOverride);
 
         return paperId;
     }

@@ -45,6 +45,7 @@ public interface ResearchPortalRepository {
 
     UUID createPaperWithMainAuthor(UUID userId,
                                    boolean lecturerAuthor,
+                                   String authorNameOverride,
                                    String title,
                                    String abstractText,
                                    String pdfUrl,
@@ -52,10 +53,13 @@ public interface ResearchPortalRepository {
                                    String journalConference,
                                    String researchArea,
                                    String category,
-                                   String paperType);
+                                   String paperType,
+                                   String approvalStatus,
+                                   UUID moderatorId);
 
     default UUID createPaperWithMainAuthor(UUID userId,
                                            boolean lecturerAuthor,
+                                           String authorNameOverride,
                                            String title,
                                            String abstractText,
                                            String pdfUrl,
@@ -68,6 +72,7 @@ public interface ResearchPortalRepository {
         return createPaperWithMainAuthor(
                 userId,
                 lecturerAuthor,
+                authorNameOverride,
                 title,
                 abstractText,
                 pdfUrl,
@@ -75,7 +80,9 @@ public interface ResearchPortalRepository {
                 journalConference,
                 researchArea,
                 category,
-                paperType);
+                paperType,
+                "PENDING",
+                null);
     }
 
     boolean isOwner(UUID paperId, UUID userId);
