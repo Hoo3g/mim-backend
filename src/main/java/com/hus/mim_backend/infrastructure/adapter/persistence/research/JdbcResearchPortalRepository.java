@@ -78,6 +78,10 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     private static final String SELECT_AUTHORS_BY_PAPER_SQL = """
             SELECT COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
                    %s AS author_name,
+                   CASE
+                       WHEN UPPER(COALESCE(us.role, ul.role, '')) = 'ADMIN' THEN FALSE
+                       ELSE TRUE
+                   END AS can_view_profile,
                    pa.is_main_author,
                    COALESCE(pa.author_order, 1) AS author_order
             FROM paper_authors pa
@@ -93,6 +97,10 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             SELECT pa.paper_id,
                    COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
                    %s AS author_name,
+                   CASE
+                       WHEN UPPER(COALESCE(us.role, ul.role, '')) = 'ADMIN' THEN FALSE
+                       ELSE TRUE
+                   END AS can_view_profile,
                    pa.is_main_author,
                    COALESCE(pa.author_order, 1) AS author_order
             FROM paper_authors pa
@@ -174,7 +182,10 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             UPDATE research_papers
             SET title = ?,
                 abstract = ?,
+                publication_year = ?,
+                journal_conference = ?,
                 research_area = ?,
+                category = ?,
                 pdf_url = COALESCE(NULLIF(?, ''), pdf_url),
                 paper_type = ?,
                 approval_status = CASE
@@ -255,6 +266,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         PaperResponse.PaperAuthorResponse author = new PaperResponse.PaperAuthorResponse();
         author.setStudentId(rs.getString("author_id"));
         author.setName(rs.getString("author_name"));
+        author.setCanViewProfile(rs.getBoolean("can_view_profile"));
         author.setMainAuthor(rs.getBoolean("is_main_author"));
         author.setAuthorOrder(rs.getInt("author_order"));
         return author;
@@ -478,8 +490,26 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     }
 
     @Override
-    public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea, String paperType) {
-        return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperType, paperId);
+    public int updatePaper(UUID paperId,
+            String title,
+            String abstractText,
+            String pdfUrl,
+            String researchArea,
+            String paperType,
+            int publicationYear,
+            String journalConference,
+            String category) {
+        return jdbcTemplate.update(
+                UPDATE_PAPER_SQL,
+                title,
+                abstractText,
+                publicationYear,
+                journalConference,
+                researchArea,
+                category,
+                pdfUrl,
+                paperType,
+                paperId);
     }
 
     @Override

@@ -54,9 +54,41 @@ public interface ResearchPortalRepository {
                                    String category,
                                    String paperType);
 
+    default UUID createPaperWithMainAuthor(UUID userId,
+                                           boolean lecturerAuthor,
+                                           String title,
+                                           String abstractText,
+                                           String pdfUrl,
+                                           int publicationYear,
+                                           String journalConference,
+                                           String researchArea,
+                                           String category,
+                                           String paperType,
+                                           boolean profileLinkEnabled) {
+        return createPaperWithMainAuthor(
+                userId,
+                lecturerAuthor,
+                title,
+                abstractText,
+                pdfUrl,
+                publicationYear,
+                journalConference,
+                researchArea,
+                category,
+                paperType);
+    }
+
     boolean isOwner(UUID paperId, UUID userId);
 
-    int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea, String paperType);
+    int updatePaper(UUID paperId,
+                    String title,
+                    String abstractText,
+                    String pdfUrl,
+                    String researchArea,
+                    String paperType,
+                    int publicationYear,
+                    String journalConference,
+                    String category);
 
     boolean deletePaperByOwner(UUID paperId, UUID userId);
 }

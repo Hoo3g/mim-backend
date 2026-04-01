@@ -165,6 +165,7 @@ public class PaperResponse {
         private String name;
         private boolean isMainAuthor;
         private int authorOrder;
+        private boolean canViewProfile = true;
 
     }
 }
