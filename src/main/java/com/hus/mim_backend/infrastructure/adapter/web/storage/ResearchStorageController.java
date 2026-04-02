@@ -12,6 +12,7 @@ import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import com.hus.mim_backend.shared.constants.RbacPermissions;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,6 +30,7 @@ import org.springframework.security.core.Authentication;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Handles upload and retrieval of research PDFs through MinIO.
@@ -134,6 +136,7 @@ public class ResearchStorageController {
 
         return ResponseEntity.ok()
                 .headers(headers)
+                .cacheControl(publicAssetCacheControl())
                 .contentType(mediaType)
                 .contentLength(object.size())
                 .body(new InputStreamResource(object.stream()));
@@ -157,6 +160,7 @@ public class ResearchStorageController {
 
         return ResponseEntity.ok()
                 .headers(headers)
+                .cacheControl(publicAssetCacheControl())
                 .contentType(mediaType)
                 .contentLength(object.size())
                 .body(new InputStreamResource(object.stream()));
@@ -180,6 +184,7 @@ public class ResearchStorageController {
 
         return ResponseEntity.ok()
                 .headers(headers)
+                .cacheControl(publicAssetCacheControl())
                 .contentType(mediaType)
                 .contentLength(object.size())
                 .body(new InputStreamResource(object.stream()));
@@ -203,6 +208,7 @@ public class ResearchStorageController {
 
         return ResponseEntity.ok()
                 .headers(headers)
+                .cacheControl(publicAssetCacheControl())
                 .contentType(mediaType)
                 .contentLength(object.size())
                 .body(new InputStreamResource(object.stream()));
@@ -249,5 +255,11 @@ public class ResearchStorageController {
         return ContentDisposition.inline()
                 .filename(effectiveName, StandardCharsets.UTF_8)
                 .build();
+    }
+
+    private CacheControl publicAssetCacheControl() {
+        return CacheControl.maxAge(365, TimeUnit.DAYS)
+                .cachePublic()
+                .immutable();
     }
 }
