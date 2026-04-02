@@ -485,8 +485,9 @@ public class AuthServiceImpl
 
         if (registrationMode == RegistrationMode.ADMIN_PROVISIONED
                 && !"STUDENT".equals(userType)
+                && !"LECTURER".equals(userType)
                 && !"COMPANY".equals(userType)) {
-            throw new DomainException("Admin can only create student or company accounts");
+            throw new DomainException("Admin can only create student, lecturer or company accounts");
         }
     }
 
