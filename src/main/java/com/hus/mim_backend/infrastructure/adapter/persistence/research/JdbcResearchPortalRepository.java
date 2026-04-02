@@ -77,7 +77,17 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
 
     private static final String SELECT_AUTHORS_BY_PAPER_SQL = """
             SELECT COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
-                   %s AS author_name,
+                   COALESCE(NULLIF(pa.author_name_override, ''), %s) AS author_name,
+                   CASE
+                       WHEN EXISTS (
+                           SELECT 1
+                           FROM user_roles ur
+                           JOIN roles r ON r.id = ur.role_id
+                           WHERE ur.user_id = COALESCE(pa.student_id, pa.lecturer_id)
+                             AND UPPER(r.name) = 'ADMIN'
+                       ) THEN FALSE
+                       ELSE TRUE
+                   END AS can_view_profile,
                    pa.is_main_author,
                    COALESCE(pa.author_order, 1) AS author_order
             FROM paper_authors pa
@@ -92,7 +102,17 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     private static final String SELECT_AUTHORS_BY_PAPER_IDS_SQL = """
             SELECT pa.paper_id,
                    COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
-                   %s AS author_name,
+                   COALESCE(NULLIF(pa.author_name_override, ''), %s) AS author_name,
+                   CASE
+                       WHEN EXISTS (
+                           SELECT 1
+                           FROM user_roles ur
+                           JOIN roles r ON r.id = ur.role_id
+                           WHERE ur.user_id = COALESCE(pa.student_id, pa.lecturer_id)
+                             AND UPPER(r.name) = 'ADMIN'
+                       ) THEN FALSE
+                       ELSE TRUE
+                   END AS can_view_profile,
                    pa.is_main_author,
                    COALESCE(pa.author_order, 1) AS author_order
             FROM paper_authors pa
@@ -151,16 +171,16 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     private static final String INSERT_PAPER_SQL = """
             INSERT INTO research_papers (
                 id, title, abstract, pdf_url, publication_year,
-                journal_conference, research_area, category, paper_type, created_at, updated_at
+                journal_conference, research_area, category, paper_type, approval_status, moderator_id, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """;
 
     private static final String INSERT_PAPER_AUTHOR_SQL = """
             INSERT INTO paper_authors (
-                id, paper_id, student_id, lecturer_id, is_main_author, author_order
+                id, paper_id, student_id, lecturer_id, author_name_override, is_main_author, author_order
             )
-            VALUES (?, ?, ?, ?, TRUE, 1)
+            VALUES (?, ?, ?, ?, ?, TRUE, 1)
             """;
 
     private static final String EXISTS_MY_PAPER_SQL = """
@@ -174,7 +194,10 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             UPDATE research_papers
             SET title = ?,
                 abstract = ?,
+                publication_year = ?,
+                journal_conference = ?,
                 research_area = ?,
+                category = ?,
                 pdf_url = COALESCE(NULLIF(?, ''), pdf_url),
                 paper_type = ?,
                 approval_status = CASE
@@ -255,6 +278,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         PaperResponse.PaperAuthorResponse author = new PaperResponse.PaperAuthorResponse();
         author.setStudentId(rs.getString("author_id"));
         author.setName(rs.getString("author_name"));
+        author.setCanViewProfile(rs.getBoolean("can_view_profile"));
         author.setMainAuthor(rs.getBoolean("is_main_author"));
         author.setAuthorOrder(rs.getInt("author_order"));
         return author;
@@ -440,6 +464,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     @Transactional
     public UUID createPaperWithMainAuthor(UUID userId,
             boolean lecturerAuthor,
+            String authorNameOverride,
             String title,
             String abstractText,
             String pdfUrl,
@@ -447,7 +472,9 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             String journalConference,
             String researchArea,
             String category,
-            String paperType) {
+            String paperType,
+            String approvalStatus,
+            UUID moderatorId) {
         UUID paperId = UUID.randomUUID();
         jdbcTemplate.update(INSERT_PAPER_SQL,
                 paperId,
@@ -458,7 +485,9 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                 journalConference,
                 researchArea,
                 category,
-                paperType);
+                paperType,
+                approvalStatus,
+                moderatorId);
 
         UUID studentId = lecturerAuthor ? null : userId;
         UUID lecturerId = lecturerAuthor ? userId : null;
@@ -466,7 +495,8 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                 UUID.randomUUID(),
                 paperId,
                 studentId,
-                lecturerId);
+                lecturerId,
+                authorNameOverride);
 
         return paperId;
     }
@@ -478,8 +508,26 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     }
 
     @Override
-    public int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea, String paperType) {
-        return jdbcTemplate.update(UPDATE_PAPER_SQL, title, abstractText, researchArea, pdfUrl, paperType, paperId);
+    public int updatePaper(UUID paperId,
+            String title,
+            String abstractText,
+            String pdfUrl,
+            String researchArea,
+            String paperType,
+            int publicationYear,
+            String journalConference,
+            String category) {
+        return jdbcTemplate.update(
+                UPDATE_PAPER_SQL,
+                title,
+                abstractText,
+                publicationYear,
+                journalConference,
+                researchArea,
+                category,
+                pdfUrl,
+                paperType,
+                paperId);
     }
 
     @Override

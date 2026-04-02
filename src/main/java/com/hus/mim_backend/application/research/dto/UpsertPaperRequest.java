@@ -11,6 +11,10 @@ public class UpsertPaperRequest {
     private String pdfUrl;
     private String researchArea;
     private String paperType;
+    private Integer publicationYear;
+    private String journalConference;
+    private String category;
+    private String authorName;
 
     public String getTitle() {
         return title;
@@ -52,5 +56,37 @@ public class UpsertPaperRequest {
 
     public void setPaperType(String paperType) {
         this.paperType = paperType;
+    }
+
+    public Integer getPublicationYear() {
+        return publicationYear;
+    }
+
+    public void setPublicationYear(Integer publicationYear) {
+        this.publicationYear = publicationYear;
+    }
+
+    public String getJournalConference() {
+        return journalConference;
+    }
+
+    public void setJournalConference(String journalConference) {
+        this.journalConference = journalConference;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
     }
 }

@@ -45,6 +45,7 @@ public interface ResearchPortalRepository {
 
     UUID createPaperWithMainAuthor(UUID userId,
                                    boolean lecturerAuthor,
+                                   String authorNameOverride,
                                    String title,
                                    String abstractText,
                                    String pdfUrl,
@@ -52,11 +53,49 @@ public interface ResearchPortalRepository {
                                    String journalConference,
                                    String researchArea,
                                    String category,
-                                   String paperType);
+                                   String paperType,
+                                   String approvalStatus,
+                                   UUID moderatorId);
+
+    default UUID createPaperWithMainAuthor(UUID userId,
+                                           boolean lecturerAuthor,
+                                           String authorNameOverride,
+                                           String title,
+                                           String abstractText,
+                                           String pdfUrl,
+                                           int publicationYear,
+                                           String journalConference,
+                                           String researchArea,
+                                           String category,
+                                           String paperType,
+                                           boolean profileLinkEnabled) {
+        return createPaperWithMainAuthor(
+                userId,
+                lecturerAuthor,
+                authorNameOverride,
+                title,
+                abstractText,
+                pdfUrl,
+                publicationYear,
+                journalConference,
+                researchArea,
+                category,
+                paperType,
+                "PENDING",
+                null);
+    }
 
     boolean isOwner(UUID paperId, UUID userId);
 
-    int updatePaper(UUID paperId, String title, String abstractText, String pdfUrl, String researchArea, String paperType);
+    int updatePaper(UUID paperId,
+                    String title,
+                    String abstractText,
+                    String pdfUrl,
+                    String researchArea,
+                    String paperType,
+                    int publicationYear,
+                    String journalConference,
+                    String category);
 
     boolean deletePaperByOwner(UUID paperId, UUID userId);
 }
