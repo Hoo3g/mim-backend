@@ -45,6 +45,7 @@ public class ApiEndpoints {
     public static final String RESEARCH = API_V1 + "/research-papers";
     public static final String RESEARCH_PAGED = "/paged";
     public static final String RESEARCH_MY = "/my";
+    public static final String RESEARCH_STUDENT_AUTHOR_SEARCH = "/student-authors/search";
     public static final String RESEARCH_BY_ID = "/{paperId}";
     public static final String RESEARCH_TRACK_VIEW = "/{paperId}/views";
     public static final String RESEARCH_TRACK_DOWNLOAD = "/{paperId}/downloads";

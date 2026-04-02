@@ -1,6 +1,7 @@
 package com.hus.mim_backend.application.research.usecase;
 
 import com.hus.mim_backend.application.research.dto.PaperResponse;
+import com.hus.mim_backend.application.research.dto.StudentAuthorLookupResponse;
 import com.hus.mim_backend.application.research.dto.UpsertPaperRequest;
 import lombok.Getter;
 
@@ -19,6 +20,10 @@ public interface ManageResearchPortalUseCase {
     }
 
     List<PaperResponse> getMyPapers(String currentUserEmail);
+
+    default List<StudentAuthorLookupResponse> searchStudentAuthors(String keyword) {
+        return List.of();
+    }
 
     Optional<PaperResponse> getApprovedPaperById(UUID paperId);
 

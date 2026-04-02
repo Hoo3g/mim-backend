@@ -3,6 +3,7 @@ package com.hus.mim_backend.infrastructure.adapter.persistence.research;
 import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
+import com.hus.mim_backend.application.research.dto.StudentAuthorLookupResponse;
 import com.hus.mim_backend.infrastructure.adapter.persistence.JdbcMappingUtils;
 import com.hus.mim_backend.infrastructure.adapter.persistence.PersistenceSqlFragments;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -61,6 +62,23 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             WHERE rp.id = ?
             """;
 
+    private static final String SEARCH_STUDENT_AUTHORS_SQL = """
+            SELECT u.id AS user_id,
+                   s.student_code AS student_id,
+                   COALESCE(NULLIF(TRIM(u.full_name), ''), SPLIT_PART(u.email, '@', 1)) AS full_name
+            FROM students s
+            JOIN users u ON u.id = s.id
+            WHERE TRIM(COALESCE(s.student_code, '')) <> ''
+              AND UPPER(s.student_code) LIKE UPPER(?)
+            ORDER BY CASE
+                         WHEN UPPER(s.student_code) = UPPER(?) THEN 0
+                         WHEN UPPER(s.student_code) LIKE UPPER(? || '%') THEN 1
+                         ELSE 2
+                     END,
+                     s.student_code ASC
+            LIMIT ?
+            """;
+
     private static final String SELECT_MY_PAPERS_SQL = SELECT_PAPERS_BASE_SQL + """
             WHERE rp.id IN (
                 SELECT DISTINCT paper_id
@@ -78,6 +96,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     private static final String SELECT_AUTHORS_BY_PAPER_SQL = """
             SELECT COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
                    COALESCE(NULLIF(pa.author_name_override, ''), %s) AS author_name,
+                   CASE WHEN pa.student_id IS NOT NULL THEN 'STUDENT' ELSE 'LECTURER' END AS author_type,
                    CASE
                        WHEN EXISTS (
                            SELECT 1
@@ -103,6 +122,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             SELECT pa.paper_id,
                    COALESCE(pa.student_id, pa.lecturer_id) AS author_id,
                    COALESCE(NULLIF(pa.author_name_override, ''), %s) AS author_name,
+                   CASE WHEN pa.student_id IS NOT NULL THEN 'STUDENT' ELSE 'LECTURER' END AS author_type,
                    CASE
                        WHEN EXISTS (
                            SELECT 1
@@ -216,6 +236,32 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
             WHERE id = ?
             """;
 
+    private static final String DELETE_STUDENT_CO_AUTHORS_SQL = """
+            DELETE FROM paper_authors
+            WHERE paper_id = ?
+              AND is_main_author = FALSE
+              AND student_id IS NOT NULL
+            """;
+
+    private static final String SELECT_MAX_AUTHOR_ORDER_SQL = """
+            SELECT COALESCE(MAX(author_order), 1)
+            FROM paper_authors
+            WHERE paper_id = ?
+            """;
+
+    private static final String INSERT_STUDENT_CO_AUTHOR_SQL = """
+            INSERT INTO paper_authors (
+                id, paper_id, student_id, lecturer_id, author_name_override, is_main_author, author_order
+            )
+            SELECT ?, ?, ?, NULL, NULL, FALSE, ?
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM paper_authors
+                WHERE paper_id = ?
+                  AND (student_id = ? OR lecturer_id = ?)
+            )
+            """;
+
     private static final String DELETE_PAPER_BY_OWNER_SQL = """
             DELETE FROM research_papers rp
             WHERE rp.id = ?
@@ -278,6 +324,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         PaperResponse.PaperAuthorResponse author = new PaperResponse.PaperAuthorResponse();
         author.setStudentId(rs.getString("author_id"));
         author.setName(rs.getString("author_name"));
+        author.setAuthorType(rs.getString("author_type"));
         author.setCanViewProfile(rs.getBoolean("can_view_profile"));
         author.setMainAuthor(rs.getBoolean("is_main_author"));
         author.setAuthorOrder(rs.getInt("author_order"));
@@ -344,6 +391,25 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
     @Override
     public List<PaperResponse> findMyPapers(UUID userId) {
         return jdbcTemplate.query(SELECT_MY_PAPERS_SQL, PAPER_ROW_MAPPER, userId, userId);
+    }
+
+    @Override
+    public List<StudentAuthorLookupResponse> searchStudentAuthorsByStudentCode(String keyword, int limit) {
+        String trimmedKeyword = keyword == null ? "" : keyword.trim();
+        if (!StringUtils.hasText(trimmedKeyword) || limit <= 0) {
+            return List.of();
+        }
+
+        return jdbcTemplate.query(
+                SEARCH_STUDENT_AUTHORS_SQL,
+                (rs, rowNum) -> new StudentAuthorLookupResponse(
+                        rs.getObject("user_id", UUID.class),
+                        rs.getString("student_id"),
+                        rs.getString("full_name")),
+                "%" + trimmedKeyword + "%",
+                trimmedKeyword,
+                trimmedKeyword,
+                limit);
     }
 
     @Override
@@ -528,6 +594,35 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                 pdfUrl,
                 paperType,
                 paperId);
+    }
+
+    @Override
+    @Transactional
+    public void replaceStudentCoAuthors(UUID paperId, List<UUID> coAuthorStudentIds) {
+        jdbcTemplate.update(DELETE_STUDENT_CO_AUTHORS_SQL, paperId);
+
+        if (coAuthorStudentIds == null || coAuthorStudentIds.isEmpty()) {
+            return;
+        }
+
+        Integer maxAuthorOrder = jdbcTemplate.queryForObject(SELECT_MAX_AUTHOR_ORDER_SQL, Integer.class, paperId);
+        int nextAuthorOrder = maxAuthorOrder == null ? 1 : maxAuthorOrder;
+
+        for (UUID studentId : coAuthorStudentIds) {
+            if (studentId == null) {
+                continue;
+            }
+            nextAuthorOrder += 1;
+            jdbcTemplate.update(
+                    INSERT_STUDENT_CO_AUTHOR_SQL,
+                    UUID.randomUUID(),
+                    paperId,
+                    studentId,
+                    nextAuthorOrder,
+                    paperId,
+                    studentId,
+                    studentId);
+        }
     }
 
     @Override

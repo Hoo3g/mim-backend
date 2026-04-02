@@ -1,6 +1,7 @@
 package com.hus.mim_backend.infrastructure.adapter.web.research;
 
 import com.hus.mim_backend.application.research.dto.PaperResponse;
+import com.hus.mim_backend.application.research.dto.StudentAuthorLookupResponse;
 import com.hus.mim_backend.application.research.dto.UpsertPaperRequest;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
 import com.hus.mim_backend.application.research.usecase.QueryPublicResearchPapersPageUseCase;
@@ -81,6 +82,16 @@ public class ResearchPaperController {
         String currentEmail = resolveAuthenticatedEmail(authentication);
         List<PaperResponse> papers = manageResearchPortalUseCase.getMyPapers(currentEmail);
         return ResponseEntity.ok(ApiResponse.success(papers, "Get my papers successfully"));
+    }
+
+    @GetMapping(ApiEndpoints.RESEARCH_STUDENT_AUTHOR_SEARCH)
+    @PreAuthorize(AUTH_RESEARCH_CREATE)
+    public ResponseEntity<ApiResponse<List<StudentAuthorLookupResponse>>> searchStudentAuthors(
+            @RequestParam(name = "q", required = false) String keyword,
+            Authentication authentication) {
+        resolveAuthenticatedEmail(authentication);
+        List<StudentAuthorLookupResponse> students = manageResearchPortalUseCase.searchStudentAuthors(keyword);
+        return ResponseEntity.ok(ApiResponse.success(students, "Search student authors successfully"));
     }
 
     @GetMapping(ApiEndpoints.RESEARCH_BY_ID)

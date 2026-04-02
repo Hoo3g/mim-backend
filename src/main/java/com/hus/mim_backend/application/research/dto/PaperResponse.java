@@ -163,6 +163,7 @@ public class PaperResponse {
     public static class PaperAuthorResponse {
         private String studentId;
         private String name;
+        private String authorType;
         private boolean isMainAuthor;
         private int authorOrder;
         private boolean canViewProfile = true;

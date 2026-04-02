@@ -1,6 +1,7 @@
 package com.hus.mim_backend.application.port.output;
 
 import com.hus.mim_backend.application.research.dto.PaperResponse;
+import com.hus.mim_backend.application.research.dto.StudentAuthorLookupResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,8 @@ public interface ResearchPortalRepository {
                                           List<String> normalizedResearchAreas);
 
     List<PaperResponse> findMyPapers(UUID userId);
+
+    List<StudentAuthorLookupResponse> searchStudentAuthorsByStudentCode(String keyword, int limit);
 
     Optional<PaperResponse> findApprovedPaperById(UUID paperId);
 
@@ -96,6 +99,8 @@ public interface ResearchPortalRepository {
                     int publicationYear,
                     String journalConference,
                     String category);
+
+    void replaceStudentCoAuthors(UUID paperId, List<UUID> coAuthorStudentIds);
 
     boolean deletePaperByOwner(UUID paperId, UUID userId);
 }

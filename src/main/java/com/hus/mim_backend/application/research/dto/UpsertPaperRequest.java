@@ -2,6 +2,8 @@ package com.hus.mim_backend.application.research.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 /**
  * Request DTO for create/update research paper via portal editor.
  */
@@ -15,6 +17,7 @@ public class UpsertPaperRequest {
     private String journalConference;
     private String category;
     private String authorName;
+    private List<String> coAuthorStudentIds;
 
     public String getTitle() {
         return title;
@@ -88,5 +91,13 @@ public class UpsertPaperRequest {
 
     public void setAuthorName(String authorName) {
         this.authorName = authorName;
+    }
+
+    public List<String> getCoAuthorStudentIds() {
+        return coAuthorStudentIds;
+    }
+
+    public void setCoAuthorStudentIds(List<String> coAuthorStudentIds) {
+        this.coAuthorStudentIds = coAuthorStudentIds;
     }
 }

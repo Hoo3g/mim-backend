@@ -4,6 +4,7 @@ import com.hus.mim_backend.application.port.output.PendingContentNotificationPor
 import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.port.output.ResearchPortalRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
+import com.hus.mim_backend.application.research.dto.StudentAuthorLookupResponse;
 import com.hus.mim_backend.application.research.dto.UpsertPaperRequest;
 import com.hus.mim_backend.application.research.usecase.ManageResearchPortalUseCase;
 import com.hus.mim_backend.domain.auth.model.AccountStatus;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
@@ -23,12 +25,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.Normalizer;
 import java.time.Year;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Application service for research portal APIs.
@@ -44,6 +47,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     private static final String DEFAULT_JOURNAL = "MIM Draft";
     private static final String PUBLIC_RESEARCH_PDF_PREFIX = "/api/public/storage/research-pdfs/";
     private static final String LEGACY_RESEARCH_PDF_PREFIX = "/api/v1/storage/research-pdfs/";
+    private static final int STUDENT_AUTHOR_SEARCH_LIMIT = 8;
 
     private final ResearchPortalRepository repository;
     private final UserRepository userRepository;
@@ -90,6 +94,15 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         List<PaperResponse> papers = repository.findMyPapers(userId);
         loadAuthors(papers);
         return papers;
+    }
+
+    @Override
+    public List<StudentAuthorLookupResponse> searchStudentAuthors(String keyword) {
+        String normalizedKeyword = normalizeStudentCodeKeyword(keyword);
+        if (!StringUtils.hasText(normalizedKeyword) || normalizedKeyword.length() < 2) {
+            return List.of();
+        }
+        return repository.searchStudentAuthorsByStudentCode(normalizedKeyword, STUDENT_AUTHOR_SEARCH_LIMIT);
     }
 
     @Override
@@ -140,6 +153,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
     })
+    @Transactional
     public PaperResponse createPaper(String currentUserEmail, UpsertPaperRequest request) {
         validateUpsertRequest(request);
         validatePdfUrlIfProvided(request.getPdfUrl());
@@ -162,6 +176,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         String normalizedPaperType = resolvePaperType(request.getPaperType());
         int publicationYear = resolvePublicationYear(request.getPublicationYear());
         String journalConference = resolveJournalConference(request.getJournalConference());
+        List<UUID> coAuthorStudentIds = resolveCoAuthorStudentIds(request.getCoAuthorStudentIds(), userId);
         String category = authorRole;
         String authorNameOverride = isAdminPublisher ? resolveAuthorNameOverride(userId, request.getAuthorName()) : null;
         String approvalStatus = isAdminPublisher ? "APPROVED" : "PENDING";
@@ -181,6 +196,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 normalizedPaperType,
                 approvalStatus,
                 moderatorId);
+        repository.replaceStudentCoAuthors(paperId, coAuthorStudentIds);
 
         PaperResponse response = repository.findPaperById(paperId)
                 .orElseThrow(() -> new DomainException("Research paper not found"));
@@ -216,6 +232,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
             @CacheEvict(cacheNames = CacheNames.PUBLIC_POSTS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.PUBLIC_POST_DETAILS, allEntries = true)
     })
+    @Transactional
     public UpdatePaperResult updatePaper(String currentUserEmail, UUID paperId, UpsertPaperRequest request) {
         validateUpsertRequest(request);
         validatePdfUrlIfProvided(request.getPdfUrl());
@@ -228,6 +245,7 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
 
         String authorRole = resolveResearchAuthorRole(userId, request.getCategory());
         String normalizedResearchArea = resolveActiveResearchArea(request.getResearchArea());
+        List<UUID> coAuthorStudentIds = resolveCoAuthorStudentIds(request.getCoAuthorStudentIds(), userId);
         int updated = repository.updatePaper(
                 paperId,
                 request.getTitle().trim(),
@@ -240,6 +258,9 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 authorRole);
         if (updated == 0) {
             return UpdatePaperResult.notFound();
+        }
+        if (request.getCoAuthorStudentIds() != null) {
+            repository.replaceStudentCoAuthors(paperId, coAuthorStudentIds);
         }
 
         PaperResponse response = repository.findPaperById(paperId)
@@ -343,6 +364,38 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
         return journalConference.trim();
     }
 
+    private List<UUID> resolveCoAuthorStudentIds(List<String> requestedIds, UUID currentUserId) {
+        if (requestedIds == null || requestedIds.isEmpty()) {
+            return List.of();
+        }
+
+        LinkedHashSet<UUID> resolvedIds = new LinkedHashSet<>();
+        for (String requestedId : requestedIds) {
+            if (!StringUtils.hasText(requestedId)) {
+                continue;
+            }
+
+            UUID parsedId;
+            try {
+                parsedId = UUID.fromString(requestedId.trim());
+            } catch (IllegalArgumentException ex) {
+                throw new DomainException("coAuthorStudentIds contains an invalid user id");
+            }
+
+            if (parsedId.equals(currentUserId)) {
+                continue;
+            }
+
+            if (!userRepository.hasStudentRegistration(parsedId)) {
+                throw new DomainException("coAuthorStudentIds contains an invalid student");
+            }
+
+            resolvedIds.add(parsedId);
+        }
+
+        return new ArrayList<>(resolvedIds);
+    }
+
     private String resolveAuthorNameOverride(UUID userId, String requestedAuthorName) {
         if (StringUtils.hasText(requestedAuthorName)) {
             return requestedAuthorName.trim();
@@ -441,5 +494,12 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
                 .toLowerCase(Locale.ROOT)
                 .trim();
         return normalized.replaceAll("\\s+", " ");
+    }
+
+    private String normalizeStudentCodeKeyword(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return value.trim().replaceAll("\\s+", "");
     }
 }
