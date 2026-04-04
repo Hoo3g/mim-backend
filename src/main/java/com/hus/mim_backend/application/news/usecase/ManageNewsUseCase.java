@@ -2,7 +2,10 @@ package com.hus.mim_backend.application.news.usecase;
 
 import com.hus.mim_backend.application.news.dto.CreateNewsRequest;
 import com.hus.mim_backend.application.news.dto.NewsResponse;
+import com.hus.mim_backend.application.news.dto.NewsScheduleImportPreviewResponse;
 import com.hus.mim_backend.application.news.dto.UpdateNewsRequest;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +25,8 @@ public interface ManageNewsUseCase {
     Optional<NewsResponse> getPublicNewsDetails(UUID newsId);
 
     Optional<NewsResponse> getAdminNewsDetails(UUID newsId);
+
+    NewsScheduleImportPreviewResponse importResearchSchedule(MultipartFile file, String sourceUrl);
 
     boolean deleteNews(UUID newsId);
 }

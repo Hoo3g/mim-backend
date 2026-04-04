@@ -36,6 +36,7 @@ public class ApiEndpoints {
     public static final String ADMIN_SPECIALIZATIONS = ADMIN + "/specializations";
     public static final String ADMIN_RECRUITMENT_CATEGORIES = ADMIN + "/recruitment-categories";
     public static final String ADMIN_NEWS = ADMIN + "/news";
+    public static final String ADMIN_NEWS_IMPORT_SCHEDULE = "/import-research-schedule";
     public static final String ADMIN_NOTIFICATIONS = ADMIN + "/notifications";
     public static final String NOTIFICATIONS_STREAM = "/stream";
     public static final String ADMIN_ANALYTICS = ADMIN + "/analytics";

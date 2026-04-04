@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -19,8 +20,12 @@ public class News {
     private String summary;
     private String imageUrl;
     private String status;
+    private String contentType;
     private boolean pinned;
     private UUID authorId;
+    private String importSourceUrl;
+    private List<NewsScheduleEntry> scheduleEntries;
+    private LocalDateTime importedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

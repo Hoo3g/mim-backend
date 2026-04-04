@@ -333,8 +333,9 @@ public class BeanConfig {
 
     @Bean
     @ConditionalOnBean(NewsRepository.class)
-    public NewsServiceImpl newsService(NewsRepository newsRepository) {
-        return new NewsServiceImpl(newsRepository);
+    public NewsServiceImpl newsService(NewsRepository newsRepository,
+            ManageResearchPortalUseCase manageResearchPortalUseCase) {
+        return new NewsServiceImpl(newsRepository, manageResearchPortalUseCase);
     }
 
     @Bean

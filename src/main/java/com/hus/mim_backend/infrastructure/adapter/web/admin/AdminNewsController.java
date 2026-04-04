@@ -2,6 +2,7 @@ package com.hus.mim_backend.infrastructure.adapter.web.admin;
 
 import com.hus.mim_backend.application.news.dto.CreateNewsRequest;
 import com.hus.mim_backend.application.news.dto.NewsResponse;
+import com.hus.mim_backend.application.news.dto.NewsScheduleImportPreviewResponse;
 import com.hus.mim_backend.application.news.dto.UpdateNewsRequest;
 import com.hus.mim_backend.application.news.usecase.ManageNewsUseCase;
 import com.hus.mim_backend.application.auth.usecase.VerifiedAccountUseCase;
@@ -9,6 +10,7 @@ import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.shared.api.ApiResponse;
 import com.hus.mim_backend.shared.constants.ApiEndpoints;
 import com.hus.mim_backend.shared.constants.RbacPermissions;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,9 +21,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +66,16 @@ public class AdminNewsController {
             Authentication authentication) {
         NewsResponse created = manageNewsUseCase.createNews(resolveVerifiedUserId(authentication), request);
         return ResponseEntity.ok(ApiResponse.success(created, "Create news successfully"));
+    }
+
+    @PostMapping(path = ApiEndpoints.ADMIN_NEWS_IMPORT_SCHEDULE, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<NewsScheduleImportPreviewResponse>> importResearchSchedule(
+            @RequestPart(name = "file", required = false) MultipartFile file,
+            @RequestParam(name = "sourceUrl", required = false) String sourceUrl,
+            Authentication authentication) {
+        resolveVerifiedUserId(authentication);
+        NewsScheduleImportPreviewResponse preview = manageNewsUseCase.importResearchSchedule(file, sourceUrl);
+        return ResponseEntity.ok(ApiResponse.success(preview, "Import research schedule successfully"));
     }
 
     @PutMapping(ApiEndpoints.NEWS_BY_ID)
