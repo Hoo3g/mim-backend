@@ -1,5 +1,9 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence;
 
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * Shared SQL fragments reused across multiple JDBC persistence adapters.
  * <p>
@@ -69,7 +73,51 @@ public final class PersistenceSqlFragments {
      * @return full SQL expression suitable for a WHERE/LIKE clause
      */
     public static String normalizeSql(String expression) {
-        return "regexp_replace(unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
+        return "regexp_replace(immutable_unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
+    }
+
+    /**
+     * Splits an already-normalized keyword into distinct search tokens.
+     * Single-character non-numeric tokens are ignored to reduce noisy matches.
+     */
+    public static List<String> splitNormalizedSearchTokens(String normalizedKeyword) {
+        if (normalizedKeyword == null || normalizedKeyword.isBlank()) {
+            return List.of();
+        }
+
+        Set<String> tokens = new LinkedHashSet<>();
+        for (String rawToken : normalizedKeyword.trim().split("[^\\p{L}\\p{N}]+")) {
+            String token = rawToken == null ? "" : rawToken.trim();
+            if (token.isEmpty()) {
+                continue;
+            }
+            if (token.length() == 1 && !Character.isDigit(token.charAt(0))) {
+                continue;
+            }
+            tokens.add(token);
+        }
+
+        if (tokens.isEmpty()) {
+            return List.of(normalizedKeyword.trim());
+        }
+        return List.copyOf(tokens);
+    }
+
+    /**
+     * Uses a tolerant threshold: for 3+ tokens, one wrong token is still allowed.
+     */
+    public static int relaxedTokenMatchThreshold(List<String> tokens) {
+        int tokenCount = tokens == null ? 0 : tokens.size();
+        if (tokenCount <= 1) {
+            return tokenCount;
+        }
+        if (tokenCount == 2) {
+            return 2;
+        }
+        if (tokenCount <= 5) {
+            return tokenCount - 1;
+        }
+        return Math.max(3, (int) Math.ceil(tokenCount * 0.6d));
     }
 
     /**

@@ -153,12 +153,8 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
         }
 
         if (StringUtils.hasText(normalizedKeyword)) {
-            params.addValue("keyword", "%" + normalizedKeyword + "%");
             sql.append("\n  AND ")
-                    .append(PersistenceSqlFragments.normalizeSql(
-                            "CONCAT_WS(' ', p.title, p.description, " + PersistenceSqlFragments.AUTHOR_NAME_SQL
-                                    + ", p.requirements, p.achievements, p.benefits)"))
-                    .append(" LIKE :keyword");
+                    .append(buildKeywordSearchClause(params, normalizedKeyword));
         }
 
         sql.append("\nORDER BY p.created_at DESC");
@@ -254,6 +250,31 @@ public class JdbcPublicPostRepository implements PublicPostRepository {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private String buildKeywordSearchClause(MapSqlParameterSource params, String normalizedKeyword) {
+        String normalizedContentSql = PersistenceSqlFragments.normalizeSql(
+                "CONCAT_WS(' ', p.title, p.description, " + PersistenceSqlFragments.AUTHOR_NAME_SQL
+                        + ", p.requirements, p.achievements, p.benefits)"
+        );
+        String phraseParam = "keywordPhrase";
+        params.addValue(phraseParam, "%" + normalizedKeyword + "%");
+
+        String phraseClause = normalizedContentSql + " LIKE :" + phraseParam;
+        List<String> keywordTokens = PersistenceSqlFragments.splitNormalizedSearchTokens(normalizedKeyword);
+        if (keywordTokens.size() <= 1) {
+            return phraseClause;
+        }
+
+        List<String> scoreParts = new ArrayList<>();
+        for (int index = 0; index < keywordTokens.size(); index++) {
+            String tokenParam = "keywordToken" + index;
+            params.addValue(tokenParam, "%" + keywordTokens.get(index) + "%");
+            scoreParts.add("CASE WHEN " + normalizedContentSql + " LIKE :" + tokenParam + " THEN 1 ELSE 0 END");
+        }
+
+        int minMatchedTokens = PersistenceSqlFragments.relaxedTokenMatchThreshold(keywordTokens);
+        return "(" + phraseClause + " OR ((" + String.join(" + ", scoreParts) + ") >= " + minMatchedTokens + "))";
     }
 
     private record PostPaperLinkRow(UUID postId, PublicResearchPaperLinkResponse paper) {}

@@ -3,6 +3,7 @@ package com.hus.mim_backend.infrastructure.adapter.persistence.research;
 import com.hus.mim_backend.application.port.output.ResearchPaperPageRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
 import com.hus.mim_backend.application.shared.PagedResult;
+import com.hus.mim_backend.infrastructure.adapter.persistence.PersistenceSqlFragments;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
@@ -119,23 +120,8 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
         }
 
         if (StringUtils.hasText(normalizedKeyword)) {
-            params.put("keyword", "%" + normalizedKeyword + "%");
-            whereSql.append("\n  AND (")
-                    .append(normalizeSql("CONCAT_WS(' ', rp.title, rp.abstract, rp.research_area, rp.journal_conference)"))
-                    .append(" LIKE :keyword")
-                    .append("\n    OR EXISTS (")
-                    .append("\n        SELECT 1")
-                    .append("\n        FROM paper_authors pa")
-                    .append("\n        LEFT JOIN students s ON s.id = pa.student_id")
-                    .append("\n        LEFT JOIN users us ON us.id = pa.student_id")
-                    .append("\n        LEFT JOIN lecturers l ON l.id = pa.lecturer_id")
-                    .append("\n        LEFT JOIN users ul ON ul.id = pa.lecturer_id")
-                    .append("\n        WHERE pa.paper_id = rp.id")
-                    .append("\n          AND ")
-                    .append(normalizeSql(AUTHOR_NAME_SQL))
-                    .append(" LIKE :keyword")
-                    .append("\n    )")
-                    .append("\n  )");
+            whereSql.append("\n  AND ")
+                    .append(buildKeywordSearchClause(params, normalizedKeyword));
         }
 
         String orderBy = resolveOrderBy(metricSort);
@@ -295,7 +281,101 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
         return false;
     }
 
+    private String buildKeywordSearchClause(Map<String, Object> params, String normalizedKeyword) {
+        String normalizedContentSql = normalizeSql("rp.title");
+        String phraseParam = "keywordPhrase";
+        String exactParam = "keywordExact";
+        params.put(phraseParam, "%" + normalizedKeyword + "%");
+        params.put(exactParam, normalizedKeyword);
+
+        String trigramClause = "("
+                + normalizedContentSql + " % :" + exactParam
+                + "\n    OR similarity(" + normalizedContentSql + ", :" + exactParam + ") >= 0.22"
+                + "\n    OR word_similarity(" + normalizedContentSql + ", :" + exactParam + ") >= 0.45"
+                + "\n    OR word_similarity(:" + exactParam + ", " + normalizedContentSql + ") >= 0.45"
+                + "\n  )";
+
+        List<String> keywordTokens = PersistenceSqlFragments.splitNormalizedSearchTokens(normalizedKeyword);
+        if (keywordTokens.size() == 1 && keywordTokens.get(0).length() <= 2) {
+            String wordParam = "keywordWord";
+            params.put(wordParam, "% " + keywordTokens.get(0) + " %");
+            return "("
+                    + buildWholeWordLikeClause(normalizedContentSql, wordParam)
+                    + "\n    OR " + buildAuthorExistsWordLikeClause(wordParam)
+                    + "\n  )";
+        }
+
+        String phraseClause = "("
+                + normalizedContentSql + " LIKE :" + phraseParam
+                + "\n    OR " + buildAuthorExistsLikeClause(phraseParam)
+                + "\n  )";
+
+        if (keywordTokens.size() <= 1) {
+            return "(" + phraseClause + "\n    OR " + trigramClause + "\n  )";
+        }
+
+        List<String> scoreParts = new ArrayList<>();
+        for (int index = 0; index < keywordTokens.size(); index++) {
+            String tokenParam = "keywordToken" + index;
+            params.put(tokenParam, "%" + keywordTokens.get(index) + "%");
+
+            String tokenClause = "("
+                    + normalizedContentSql + " LIKE :" + tokenParam
+                    + "\n      OR " + buildAuthorExistsLikeClause(tokenParam)
+                    + "\n    )";
+            scoreParts.add("CASE WHEN " + tokenClause + " THEN 1 ELSE 0 END");
+        }
+
+        int minMatchedTokens = PersistenceSqlFragments.relaxedTokenMatchThreshold(keywordTokens);
+        return "(" + phraseClause
+                + "\n    OR " + trigramClause
+                + "\n    OR ((" + String.join(" + ", scoreParts) + ") >= " + minMatchedTokens + ")"
+                + "\n  )";
+    }
+
+    private String buildAuthorExistsLikeClause(String parameterName) {
+        return """
+                EXISTS (
+                    SELECT 1
+                    FROM paper_authors pa
+                    LEFT JOIN students s ON s.id = pa.student_id
+                    LEFT JOIN users us ON us.id = pa.student_id
+                    LEFT JOIN lecturers l ON l.id = pa.lecturer_id
+                    LEFT JOIN users ul ON ul.id = pa.lecturer_id
+                    WHERE pa.paper_id = rp.id
+                      AND %s LIKE :%s
+                )
+                """.formatted(
+                normalizeSql("COALESCE(NULLIF(pa.author_name_override, ''), " + AUTHOR_NAME_SQL + ")"),
+                parameterName
+        );
+    }
+
+    private String buildAuthorExistsWordLikeClause(String parameterName) {
+        return """
+                EXISTS (
+                    SELECT 1
+                    FROM paper_authors pa
+                    LEFT JOIN students s ON s.id = pa.student_id
+                    LEFT JOIN users us ON us.id = pa.student_id
+                    LEFT JOIN lecturers l ON l.id = pa.lecturer_id
+                    LEFT JOIN users ul ON ul.id = pa.lecturer_id
+                    WHERE pa.paper_id = rp.id
+                      AND %s
+                )
+                """.formatted(
+                buildWholeWordLikeClause(
+                        normalizeSql("COALESCE(NULLIF(pa.author_name_override, ''), " + AUTHOR_NAME_SQL + ")"),
+                        parameterName
+                )
+        );
+    }
+
+    private String buildWholeWordLikeClause(String normalizedSql, String parameterName) {
+        return "(' ' || regexp_replace(" + normalizedSql + ", '[^[:alnum:]]+', ' ', 'g') || ' ') LIKE :" + parameterName;
+    }
+
     private String normalizeSql(String expression) {
-        return "regexp_replace(unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
+        return "regexp_replace(immutable_unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
     }
 }

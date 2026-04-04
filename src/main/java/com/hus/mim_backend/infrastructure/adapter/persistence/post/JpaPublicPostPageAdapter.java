@@ -6,6 +6,7 @@ import com.hus.mim_backend.application.port.output.PublicPostPageRepository;
 import com.hus.mim_backend.application.post.dto.PublicPostResponse;
 import com.hus.mim_backend.application.post.dto.PublicResearchPaperLinkResponse;
 import com.hus.mim_backend.application.shared.PagedResult;
+import com.hus.mim_backend.infrastructure.adapter.persistence.PersistenceSqlFragments;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
@@ -150,11 +151,8 @@ public class JpaPublicPostPageAdapter implements PublicPostPageRepository {
         }
 
         if (StringUtils.hasText(normalizedKeyword)) {
-            params.put("keyword", "%" + normalizedKeyword + "%");
             whereSql.append("\n  AND ")
-                    .append(normalizeSql("CONCAT_WS(' ', p.title, p.description, " + AUTHOR_NAME_SQL
-                            + ", p.requirements, p.achievements, p.benefits)"))
-                    .append(" LIKE :keyword");
+                    .append(buildKeywordSearchClause(params, normalizedKeyword));
         }
 
         String dataSql = POSTS_SELECT_SQL + POSTS_FROM_SQL + whereSql + "\nORDER BY p.created_at DESC"
@@ -335,7 +333,32 @@ public class JpaPublicPostPageAdapter implements PublicPostPageRepository {
         return 0L;
     }
 
+    private String buildKeywordSearchClause(Map<String, Object> params, String normalizedKeyword) {
+        String normalizedContentSql = normalizeSql(
+                "CONCAT_WS(' ', p.title, p.description, " + AUTHOR_NAME_SQL
+                        + ", p.requirements, p.achievements, p.benefits)"
+        );
+        String phraseParam = "keywordPhrase";
+        params.put(phraseParam, "%" + normalizedKeyword + "%");
+
+        String phraseClause = normalizedContentSql + " LIKE :" + phraseParam;
+        List<String> keywordTokens = PersistenceSqlFragments.splitNormalizedSearchTokens(normalizedKeyword);
+        if (keywordTokens.size() <= 1) {
+            return phraseClause;
+        }
+
+        List<String> scoreParts = new ArrayList<>();
+        for (int index = 0; index < keywordTokens.size(); index++) {
+            String tokenParam = "keywordToken" + index;
+            params.put(tokenParam, "%" + keywordTokens.get(index) + "%");
+            scoreParts.add("CASE WHEN " + normalizedContentSql + " LIKE :" + tokenParam + " THEN 1 ELSE 0 END");
+        }
+
+        int minMatchedTokens = PersistenceSqlFragments.relaxedTokenMatchThreshold(keywordTokens);
+        return "(" + phraseClause + " OR ((" + String.join(" + ", scoreParts) + ") >= " + minMatchedTokens + "))";
+    }
+
     private String normalizeSql(String expression) {
-        return "regexp_replace(unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
+        return "regexp_replace(immutable_unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
     }
 }
