@@ -121,10 +121,7 @@ public class ProfilePortalService implements ProfilePortalUseCase {
         UUID userId = resolveUserId(email);
         ensureVerifiedUser(userId);
         ensureRole(userId, ROLE_STUDENT);
-        if (!StringUtils.hasText(cvUrl)) {
-            throw new DomainException("CV URL is required");
-        }
-        repository.updateStudentCv(userId, cvUrl.trim());
+        repository.updateStudentCv(userId, StringUtils.hasText(cvUrl) ? cvUrl.trim() : null);
         return getMyProfile(email);
     }
 
