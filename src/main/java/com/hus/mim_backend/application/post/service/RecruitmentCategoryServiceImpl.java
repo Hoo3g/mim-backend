@@ -13,6 +13,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,7 +35,7 @@ public class RecruitmentCategoryServiceImpl implements QueryRecruitmentCategoryU
             key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getActiveRecruitmentCategories() {
-        return repository.findActiveRecruitmentCategories();
+        return new ArrayList<>(repository.findActiveRecruitmentCategories());
     }
 
     @Override
@@ -42,7 +43,7 @@ public class RecruitmentCategoryServiceImpl implements QueryRecruitmentCategoryU
             key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getAllRecruitmentCategories() {
-        return repository.findAllRecruitmentCategories();
+        return new ArrayList<>(repository.findAllRecruitmentCategories());
     }
 
     @Override

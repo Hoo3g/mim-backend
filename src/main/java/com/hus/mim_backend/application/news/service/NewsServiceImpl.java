@@ -182,7 +182,7 @@ public class NewsServiceImpl implements ManageNewsUseCase {
     public List<NewsResponse> getPublicNews() {
         return newsRepository.findPublishedOrderByPinnedAndCreatedAtDesc().stream()
                 .map(this::toResponse)
-                .toList();
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     @Override

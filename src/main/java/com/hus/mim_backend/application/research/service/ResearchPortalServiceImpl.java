@@ -108,7 +108,6 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     @Override
     @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
             key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)",
-            unless = "#result == null || #result.isEmpty()",
             sync = true)
     public Optional<PaperResponse> getApprovedPaperById(UUID paperId) {
         Optional<PaperResponse> paper = repository.findApprovedPaperById(paperId);

@@ -369,7 +369,7 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                     .append(buildKeywordSearchClause(params, normalizedKeyword));
         }
 
-        sql.append("\nORDER BY rp.created_at DESC");
+        sql.append("\nORDER BY ").append(resolveOrderBy(normalizedKeyword));
         return namedParameterJdbcTemplate.query(sql.toString(), params, PAPER_ROW_MAPPER);
     }
 
@@ -676,6 +676,32 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
                 + "\n    OR " + trigramClause
                 + "\n    OR ((" + String.join(" + ", scoreParts) + ") >= " + minMatchedTokens + ")"
                 + "\n  )";
+    }
+
+    private String resolveOrderBy(String normalizedKeyword) {
+        if (!StringUtils.hasText(normalizedKeyword)) {
+            return "rp.created_at DESC";
+        }
+
+        String normalizedTitleSql = PersistenceSqlFragments.normalizeSql("rp.title");
+        return """
+                CASE
+                    WHEN %1$s = :keywordExact THEN 0
+                    WHEN %1$s LIKE (:keywordExact || '%%') THEN 1
+                    WHEN %1$s LIKE :keywordPhrase THEN 2
+                    WHEN %1$s %% :keywordExact THEN 3
+                    ELSE 4
+                END ASC,
+                CASE
+                    WHEN %1$s LIKE :keywordPhrase THEN 1
+                    ELSE 0
+                END DESC,
+                similarity(%1$s, :keywordExact) DESC,
+                word_similarity(%1$s, :keywordExact) DESC,
+                word_similarity(:keywordExact, %1$s) DESC,
+                ABS(char_length(%1$s) - char_length(:keywordExact)) ASC,
+                rp.created_at DESC
+                """.formatted(normalizedTitleSql);
     }
 
     private String buildAuthorExistsLikeClause(String parameterName) {

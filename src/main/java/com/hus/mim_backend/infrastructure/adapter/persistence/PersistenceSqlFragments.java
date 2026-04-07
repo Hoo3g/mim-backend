@@ -73,7 +73,7 @@ public final class PersistenceSqlFragments {
      * @return full SQL expression suitable for a WHERE/LIKE clause
      */
     public static String normalizeSql(String expression) {
-        return "regexp_replace(immutable_unaccent(lower(COALESCE(" + expression + ", ''))), '\\s+', ' ', 'g')";
+        return "trim(regexp_replace(immutable_unaccent(lower(COALESCE(" + expression + ", ''))), '[[:space:]]+', ' ', 'g'))";
     }
 
     /**

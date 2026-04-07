@@ -13,6 +13,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,7 +35,7 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
             key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getActiveSpecializations() {
-        return repository.findActiveSpecializations();
+        return new ArrayList<>(repository.findActiveSpecializations());
     }
 
     @Override
@@ -42,7 +43,7 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
             key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getAllSpecializations() {
-        return repository.findAllSpecializations();
+        return new ArrayList<>(repository.findAllSpecializations());
     }
 
     @Override

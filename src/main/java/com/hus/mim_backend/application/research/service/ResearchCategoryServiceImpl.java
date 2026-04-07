@@ -13,6 +13,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,7 +35,7 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
             key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getActiveCategories() {
-        return repository.findActiveCategories();
+        return new ArrayList<>(repository.findActiveCategories());
     }
 
     @Override
@@ -42,7 +43,7 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
             key = "T(com.hus.mim_backend.shared.constants.CacheKeys).singleton()",
             sync = true)
     public List<ResearchCategoryResponse> getAllCategories() {
-        return repository.findAllCategories();
+        return new ArrayList<>(repository.findAllCategories());
     }
 
     @Override
