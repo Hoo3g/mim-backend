@@ -1,0 +1,15 @@
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r
+JOIN permissions p ON p.name IN (
+    'ADMIN_DASHBOARD_VIEW',
+    'MODERATION_POSTS_VIEW',
+    'MODERATION_POSTS_ACTION',
+    'MODERATION_PAPERS_VIEW',
+    'MODERATION_PAPERS_ACTION',
+    'RESEARCH_HERO_EDIT',
+    'RESEARCH_CATEGORY_MANAGE',
+    'RBAC_MANAGE'
+)
+WHERE r.name = 'ADMIN'
+ON CONFLICT DO NOTHING;

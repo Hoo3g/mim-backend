@@ -31,12 +31,14 @@ import java.util.UUID;
 @RestController
 @RequestMapping(ApiEndpoints.ADMIN + ApiEndpoints.MODERATION)
 public class AdminModerationController {
-    private static final String AUTH_POSTS_VIEW = "hasAnyAuthority('PERM_" + RbacPermissions.MODERATION_POSTS_VIEW
-            + "','PERM_" + RbacPermissions.MODERATION_POSTS_ACTION + "')";
-    private static final String AUTH_POSTS_ACTION = "hasAuthority('PERM_" + RbacPermissions.MODERATION_POSTS_ACTION + "')";
-    private static final String AUTH_PAPERS_VIEW = "hasAnyAuthority('PERM_" + RbacPermissions.MODERATION_PAPERS_VIEW
-            + "','PERM_" + RbacPermissions.MODERATION_PAPERS_ACTION + "')";
-    private static final String AUTH_PAPERS_ACTION = "hasAuthority('PERM_" + RbacPermissions.MODERATION_PAPERS_ACTION + "')";
+    private static final String AUTH_POSTS_VIEW = "hasRole('ADMIN') or hasAnyAuthority('PERM_"
+            + RbacPermissions.MODERATION_POSTS_VIEW + "','PERM_" + RbacPermissions.MODERATION_POSTS_ACTION + "')";
+    private static final String AUTH_POSTS_ACTION = "hasRole('ADMIN') or hasAuthority('PERM_"
+            + RbacPermissions.MODERATION_POSTS_ACTION + "')";
+    private static final String AUTH_PAPERS_VIEW = "hasRole('ADMIN') or hasAnyAuthority('PERM_"
+            + RbacPermissions.MODERATION_PAPERS_VIEW + "','PERM_" + RbacPermissions.MODERATION_PAPERS_ACTION + "')";
+    private static final String AUTH_PAPERS_ACTION = "hasRole('ADMIN') or hasAuthority('PERM_"
+            + RbacPermissions.MODERATION_PAPERS_ACTION + "')";
 
     private final AdminModerationUseCase adminModerationUseCase;
 

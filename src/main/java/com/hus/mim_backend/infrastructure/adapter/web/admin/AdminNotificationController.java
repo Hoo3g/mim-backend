@@ -25,7 +25,7 @@ public class AdminNotificationController {
     }
 
     @GetMapping(value = ApiEndpoints.NOTIFICATIONS_STREAM, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @PreAuthorize("hasAnyAuthority('PERM_ADMIN_DASHBOARD_VIEW','PERM_MODERATION_POSTS_VIEW','PERM_MODERATION_POSTS_ACTION','PERM_MODERATION_PAPERS_VIEW','PERM_MODERATION_PAPERS_ACTION')")
+    @PreAuthorize("hasRole('ADMIN') or hasAnyAuthority('PERM_ADMIN_DASHBOARD_VIEW','PERM_MODERATION_POSTS_VIEW','PERM_MODERATION_POSTS_ACTION','PERM_MODERATION_PAPERS_VIEW','PERM_MODERATION_PAPERS_ACTION')")
     public SseEmitter streamNotifications(Authentication authentication) {
         String email = resolveAuthenticatedEmail(authentication);
         return sseEmitter.addEmitter(email);
