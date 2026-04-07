@@ -117,22 +117,12 @@ public class ResearchPortalServiceImpl implements ManageResearchPortalUseCase {
     }
 
     @Override
-    @Caching(evict = {
-            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
-            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
-                    key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
-    })
     public boolean trackApprovedPaperView(String currentUserEmail, UUID paperId) {
         UUID userId = resolveCurrentUserId(currentUserEmail);
         return repository.registerApprovedPaperView(userId, paperId);
     }
 
     @Override
-    @Caching(evict = {
-            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS, allEntries = true),
-            @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS,
-                    key = "T(com.hus.mim_backend.shared.constants.CacheKeys).idKey(#paperId)")
-    })
     public boolean trackApprovedPaperDownload(String currentUserEmail, UUID paperId) {
         UUID userId = resolveCurrentUserId(currentUserEmail);
         return repository.registerApprovedPaperDownload(userId, paperId);

@@ -31,6 +31,39 @@ public final class CacheKeys {
         return "q=" + normalizedKeyword + ";type=" + normalizedType + ";values=" + normalizedValues;
     }
 
+    public static String researchPagedQueryKey(String keyword,
+            String category,
+            String paperType,
+            List<String> researchAreas,
+            Integer publicationYear,
+            String metricSort,
+            int page,
+            int size) {
+        String normalizedKeyword = normalize(keyword);
+        String normalizedCategory = normalize(category);
+        String normalizedPaperType = normalize(paperType);
+        String normalizedMetric = normalize(metricSort);
+        String normalizedResearchAreas = researchAreas == null ? "" : researchAreas.stream()
+                .filter(StringUtils::hasText)
+                .flatMap((value) -> List.of(value.split(",")).stream())
+                .map(String::trim)
+                .map(CacheKeys::normalize)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .sorted(Comparator.naturalOrder())
+                .reduce((left, right) -> left + "|" + right)
+                .orElse("");
+
+        return "q=" + normalizedKeyword
+                + ";category=" + normalizedCategory
+                + ";paperType=" + normalizedPaperType
+                + ";areas=" + normalizedResearchAreas
+                + ";year=" + (publicationYear == null ? "" : publicationYear)
+                + ";metric=" + normalizedMetric
+                + ";page=" + Math.max(page, 0)
+                + ";size=" + Math.max(size, 1);
+    }
+
     public static String idKey(UUID id) {
         return id == null ? "null" : id.toString();
     }

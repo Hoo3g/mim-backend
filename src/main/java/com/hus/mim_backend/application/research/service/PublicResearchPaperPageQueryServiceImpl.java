@@ -4,6 +4,8 @@ import com.hus.mim_backend.application.port.output.ResearchPaperPageRepository;
 import com.hus.mim_backend.application.research.dto.PaperResponse;
 import com.hus.mim_backend.application.research.usecase.QueryPublicResearchPapersPageUseCase;
 import com.hus.mim_backend.application.shared.PagedResult;
+import com.hus.mim_backend.shared.constants.CacheNames;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.util.StringUtils;
 
 import java.text.Normalizer;
@@ -24,6 +26,9 @@ public class PublicResearchPaperPageQueryServiceImpl implements QueryPublicResea
     }
 
     @Override
+    @Cacheable(cacheNames = CacheNames.PUBLIC_RESEARCH_PAPERS,
+            key = "T(com.hus.mim_backend.shared.constants.CacheKeys).researchPagedQueryKey(#keyword, #category, #paperType, #researchAreas, #publicationYear, #metricSort, #page, #size)",
+            sync = true)
     public PagedResult<PaperResponse> getPapersPage(String keyword,
             String category,
             String paperType,

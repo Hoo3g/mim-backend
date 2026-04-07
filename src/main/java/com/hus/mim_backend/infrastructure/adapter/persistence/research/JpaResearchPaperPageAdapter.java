@@ -124,7 +124,7 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
                     .append(buildKeywordSearchClause(params, normalizedKeyword));
         }
 
-        String orderBy = resolveOrderBy(metricSort);
+        String orderBy = resolveOrderBy(metricSort, normalizedKeyword);
         String dataSql = PAPERS_SELECT_SQL + whereSql + "\nORDER BY " + orderBy + "\nLIMIT :limit OFFSET :offset";
         Query dataQuery = entityManager.createNativeQuery(dataSql);
         params.forEach(dataQuery::setParameter);
@@ -208,13 +208,40 @@ public class JpaResearchPaperPageAdapter implements ResearchPaperPageRepository 
         return response;
     }
 
-    private String resolveOrderBy(String metricSort) {
-        return switch (metricSort) {
+    private String resolveOrderBy(String metricSort, String normalizedKeyword) {
+        String fallbackOrderBy = switch (metricSort) {
             case "views" -> "COALESCE(rp.view_count, 0) DESC, rp.created_at DESC";
             case "downloads" -> "COALESCE(rp.download_count, 0) DESC, rp.created_at DESC";
             case "bookmarks" -> "bookmark_count DESC, rp.created_at DESC";
             default -> "rp.created_at DESC";
         };
+
+        if (!StringUtils.hasText(normalizedKeyword)) {
+            return fallbackOrderBy;
+        }
+
+        return buildKeywordRelevanceOrderBy() + ", " + fallbackOrderBy;
+    }
+
+    private String buildKeywordRelevanceOrderBy() {
+        String normalizedTitleSql = normalizeSql("rp.title");
+        return """
+                CASE
+                    WHEN %1$s = :keywordExact THEN 0
+                    WHEN %1$s LIKE (:keywordExact || '%%') THEN 1
+                    WHEN %1$s LIKE :keywordPhrase THEN 2
+                    WHEN %1$s %% :keywordExact THEN 3
+                    ELSE 4
+                END ASC,
+                CASE
+                    WHEN %1$s LIKE :keywordPhrase THEN 1
+                    ELSE 0
+                END DESC,
+                similarity(%1$s, :keywordExact) DESC,
+                word_similarity(%1$s, :keywordExact) DESC,
+                word_similarity(:keywordExact, %1$s) DESC,
+                ABS(char_length(%1$s) - char_length(:keywordExact)) ASC
+                """.formatted(normalizedTitleSql);
     }
 
     private UUID toUuid(Object value) {
