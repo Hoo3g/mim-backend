@@ -57,10 +57,10 @@ public class RedisCacheConfig {
 
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         cacheConfigurations.put(CacheNames.PUBLIC_POSTS, defaultConfig.entryTtl(Duration.ofMinutes(2)));
-        cacheConfigurations.put(CacheNames.PUBLIC_RESEARCH_PAPERS, defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put(CacheNames.PUBLIC_RESEARCH_PAPERS, defaultConfig.entryTtl(Duration.ofMinutes(60)));
         cacheConfigurations.put(CacheNames.PUBLIC_NEWS, defaultConfig.entryTtl(Duration.ofMinutes(2)));
         cacheConfigurations.put(CacheNames.PUBLIC_POST_DETAILS, defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put(CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS, defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put(CacheNames.PUBLIC_RESEARCH_PAPER_DETAILS, defaultConfig.entryTtl(Duration.ofHours(1)));
         cacheConfigurations.put(CacheNames.PUBLIC_NEWS_DETAILS, defaultConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigurations.put(CacheNames.PUBLIC_RESEARCH_CATEGORIES, defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigurations.put(CacheNames.RESEARCH_CATEGORIES_ALL, defaultConfig.entryTtl(Duration.ofMinutes(10)));

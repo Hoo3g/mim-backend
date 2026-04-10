@@ -21,7 +21,15 @@ public class JdbcAnalyticsRepository implements AnalyticsRepository {
                 occurred_at,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            SELECT ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM analytics_page_views
+                WHERE visitor_id = ?
+                  AND route_key = ?
+                  AND path = ?
+                  AND occurred_at >= CURRENT_TIMESTAMP - INTERVAL '1 hour'
+            )
             """;
 
     private static final String UPSERT_PRESENCE_SQL = """
@@ -128,7 +136,10 @@ public class JdbcAnalyticsRepository implements AnalyticsRepository {
                 record.getPath(),
                 record.getReferrer(),
                 record.isAuthenticated(),
-                Timestamp.valueOf(record.getOccurredAt()));
+                Timestamp.valueOf(record.getOccurredAt()),
+                record.getVisitorId(),
+                record.getRouteKey(),
+                record.getPath());
     }
 
     @Override
