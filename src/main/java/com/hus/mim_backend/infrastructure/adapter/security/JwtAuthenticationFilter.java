@@ -1,7 +1,11 @@
 package com.hus.mim_backend.infrastructure.adapter.security;
 
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.port.output.TokenProvider;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
+import com.hus.mim_backend.domain.auth.model.AccountStatus;
+import com.hus.mim_backend.domain.auth.model.Email;
+import com.hus.mim_backend.domain.auth.model.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -23,10 +28,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
     private final ManageRbacUseCase manageRbacUseCase;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(TokenProvider tokenProvider, ManageRbacUseCase manageRbacUseCase) {
+    public JwtAuthenticationFilter(TokenProvider tokenProvider, ManageRbacUseCase manageRbacUseCase, UserRepository userRepository) {
         this.tokenProvider = tokenProvider;
         this.manageRbacUseCase = manageRbacUseCase;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -46,16 +53,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && tokenProvider.validateToken(token)) {
                 String email = tokenProvider.getEmailFromToken(token);
-                Set<String> roles = tokenProvider.getRolesFromToken(token);
+                User currentUser = null;
+                try {
+                    currentUser = userRepository.findByEmail(new Email(email)).orElse(null);
+                } catch (RuntimeException ignored) {
+                    currentUser = null;
+                }
+
+                if (currentUser == null || currentUser.getStatus() == AccountStatus.BLOCKED) {
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                Set<String> roles = currentUser.getRoles() == null || currentUser.getRoles().isEmpty()
+                        ? tokenProvider.getRolesFromToken(token)
+                        : currentUser.getRoles().stream()
+                                .filter(role -> role != null && !role.isBlank())
+                                .map(role -> role.trim().toUpperCase(Locale.ROOT))
+                                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
                 Set<String> permissions = Set.of();
                 try {
-                    Set<String> dbRoles = manageRbacUseCase.getRolesByEmail(email);
-                    if (!dbRoles.isEmpty()) {
-                        roles = dbRoles;
-                    }
-                    permissions = manageRbacUseCase.getEffectivePermissionsByEmail(email);
+                    permissions = manageRbacUseCase.getEffectivePermissionsByUserId(currentUser.getId());
                 } catch (RuntimeException ignored) {
-                    // Fallback to token roles only when RBAC lookup fails.
+                    // Fallback to token/user roles only when RBAC lookup fails.
                 }
 
                 var authorities = new LinkedHashSet<SimpleGrantedAuthority>();

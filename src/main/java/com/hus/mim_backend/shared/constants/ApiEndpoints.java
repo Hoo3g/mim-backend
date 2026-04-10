@@ -29,6 +29,9 @@ public class ApiEndpoints {
     public static final String RBAC_USERS = "/users";
     public static final String RBAC_USER_OVERRIDES = "/users/{userId}/overrides";
     public static final String RBAC_USER_ROLES = "/users/{userId}/roles";
+    public static final String ADMIN_USER_BY_ID = "/{userId}";
+    public static final String ADMIN_USER_LOCK = "/{userId}/lock";
+    public static final String ADMIN_USER_UNLOCK = "/{userId}/unlock";
     public static final String ADMIN_STORAGE = ADMIN + "/storage";
     public static final String CONTENT = API_V1 + "/content";
     public static final String RESEARCH_HERO = "/research-hero";

@@ -1,6 +1,7 @@
 package com.hus.mim_backend.infrastructure.config;
 
 import com.hus.mim_backend.application.port.output.TokenProvider;
+import com.hus.mim_backend.application.port.output.UserRepository;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.infrastructure.adapter.security.JwtAuthenticationFilter;
 import com.hus.mim_backend.shared.api.ApiResponse;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
@@ -42,13 +44,16 @@ public class SecurityConfig {
 
     private final TokenProvider tokenProvider;
     private final ManageRbacUseCase manageRbacUseCase;
+    private final UserRepository userRepository;
     private final List<String> allowedOrigins;
 
     public SecurityConfig(TokenProvider tokenProvider,
             ManageRbacUseCase manageRbacUseCase,
+            UserRepository userRepository,
             @Value("${app.cors.allowed-origins:http://localhost:4200,http://localhost:4000}") String allowedOriginsCsv) {
         this.tokenProvider = tokenProvider;
         this.manageRbacUseCase = manageRbacUseCase;
+        this.userRepository = userRepository;
         this.allowedOrigins = Arrays.stream(allowedOriginsCsv.split(","))
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
@@ -67,6 +72,9 @@ public class SecurityConfig {
                 // JSON 401 when no/invalid token is provided
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
+                            if (response.isCommitted()) {
+                                return;
+                            }
                             response.setStatus(401);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
@@ -75,6 +83,9 @@ public class SecurityConfig {
                         })
                         // JSON 403 when authenticated but insufficient role
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            if (response.isCommitted()) {
+                                return;
+                            }
                             response.setStatus(403);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
@@ -83,6 +94,8 @@ public class SecurityConfig {
                         }))
 
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/public/storage/research-pdfs/**").authenticated()
                         .requestMatchers("/api/public/**").permitAll()
@@ -120,7 +133,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").authenticated()
                         .anyRequest().authenticated())
 
-                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider, manageRbacUseCase),
+                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider, manageRbacUseCase, userRepository),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

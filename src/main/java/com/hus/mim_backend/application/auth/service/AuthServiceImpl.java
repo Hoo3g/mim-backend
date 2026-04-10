@@ -103,6 +103,39 @@ public class AuthServiceImpl
     }
 
     @Override
+    public UserResponse lockUserByAdmin(String actorEmail, UUID userId) {
+        User targetUser = resolveManageableUser(actorEmail, userId);
+        if (targetUser.getStatus() != AccountStatus.BLOCKED) {
+            targetUser.setStatus(AccountStatus.BLOCKED);
+            targetUser.setUpdatedAt(LocalDateTime.now());
+            targetUser = userRepository.save(targetUser);
+        }
+        refreshTokenRepository.revokeByUserId(targetUser.getId());
+        emailVerificationTokenRepository.deleteByUserId(targetUser.getId());
+        return UserResponse.fromDomain(targetUser);
+    }
+
+    @Override
+    public UserResponse unlockUserByAdmin(String actorEmail, UUID userId) {
+        User targetUser = resolveManageableUser(actorEmail, userId);
+        if (targetUser.getStatus() != AccountStatus.APPROVED) {
+            targetUser.setStatus(AccountStatus.APPROVED);
+            targetUser.setUpdatedAt(LocalDateTime.now());
+            targetUser = userRepository.save(targetUser);
+        }
+        refreshTokenRepository.revokeByUserId(targetUser.getId());
+        return UserResponse.fromDomain(targetUser);
+    }
+
+    @Override
+    public void deleteUserByAdmin(String actorEmail, UUID userId) {
+        User targetUser = resolveManageableUser(actorEmail, userId);
+        refreshTokenRepository.revokeByUserId(targetUser.getId());
+        emailVerificationTokenRepository.deleteByUserId(targetUser.getId());
+        userRepository.deleteById(targetUser.getId());
+    }
+
+    @Override
     public AuthResponse refreshToken(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new AuthException("Refresh token is required");
@@ -332,6 +365,24 @@ public class AuthServiceImpl
         if (user.getStatus() == AccountStatus.BLOCKED) {
             throw new DomainException("Account has been blocked");
         }
+    }
+
+    private User resolveManageableUser(String actorEmail, UUID userId) {
+        if (userId == null) {
+            throw new DomainException("User not found");
+        }
+        User actor = userRepository.findByEmail(new Email(actorEmail))
+                .orElseThrow(() -> new DomainException("Authentication required"));
+        User targetUser = userRepository.findById(userId)
+                .orElseThrow(() -> new DomainException("User not found"));
+
+        if (actor.getId() != null && actor.getId().equals(targetUser.getId())) {
+            throw new DomainException("You cannot modify your own account in this screen");
+        }
+        if (targetUser.getRoles() != null && targetUser.getRoles().stream().anyMatch("ADMIN"::equalsIgnoreCase)) {
+            throw new DomainException("Admin accounts cannot be modified by this action");
+        }
+        return targetUser;
     }
 
     private AuthResponse issueTokens(User user) {
