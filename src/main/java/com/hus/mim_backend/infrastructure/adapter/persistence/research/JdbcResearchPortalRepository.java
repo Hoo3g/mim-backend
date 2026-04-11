@@ -273,10 +273,18 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
               )
             """;
 
-    private static final String INSERT_UNIQUE_VIEW_SQL = """
+    private static final String INSERT_INITIAL_VIEW_SQL = """
             INSERT INTO research_paper_unique_views (user_id, paper_id, created_at)
             VALUES (?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT (user_id, paper_id) DO NOTHING
+            """;
+
+    private static final String REFRESH_VIEW_WINDOW_SQL = """
+            UPDATE research_paper_unique_views
+            SET created_at = CURRENT_TIMESTAMP
+            WHERE user_id = ?
+              AND paper_id = ?
+              AND created_at <= CURRENT_TIMESTAMP - INTERVAL '2 hours'
             """;
 
     private static final String INCREMENT_VIEW_COUNT_SQL = """
@@ -421,8 +429,13 @@ public class JdbcResearchPortalRepository implements ResearchPortalRepository {
         if (!existsApprovedPaperRecord(paperId)) {
             return false;
         }
-        int inserted = jdbcTemplate.update(INSERT_UNIQUE_VIEW_SQL, userId, paperId);
-        if (inserted == 0) {
+        int inserted = jdbcTemplate.update(INSERT_INITIAL_VIEW_SQL, userId, paperId);
+        if (inserted > 0) {
+            return jdbcTemplate.update(INCREMENT_VIEW_COUNT_SQL, paperId) > 0;
+        }
+
+        int refreshed = jdbcTemplate.update(REFRESH_VIEW_WINDOW_SQL, userId, paperId);
+        if (refreshed == 0) {
             return true;
         }
         return jdbcTemplate.update(INCREMENT_VIEW_COUNT_SQL, paperId) > 0;
