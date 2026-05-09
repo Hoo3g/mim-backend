@@ -34,11 +34,11 @@ public class AdminNotificationSseEmitter {
         });
         emitter.onTimeout(() -> {
             log.debug("SSE connection timed out for {}", adminEmail);
-            emitters.remove(adminEmail);
+            removeEmitter(adminEmail);
         });
         emitter.onError(ex -> {
             log.debug("SSE connection error for {}: {}", adminEmail, ex.getMessage());
-            emitters.remove(adminEmail);
+            removeEmitter(adminEmail);
         });
 
         emitters.put(adminEmail, emitter);
