@@ -28,6 +28,7 @@ import com.hus.mim_backend.domain.auth.model.RefreshToken;
 import com.hus.mim_backend.domain.auth.model.User;
 import com.hus.mim_backend.domain.shared.AuthException;
 import com.hus.mim_backend.domain.shared.DomainException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -74,6 +75,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         if (request == null || request.getPassword() == null || request.getPassword().isBlank()) {
             throw new DomainException("Identifier and password are required");
@@ -93,16 +95,19 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public UserResponse register(RegisterRequest request) {
         return registerInternal(request, RegistrationMode.SELF_SERVICE);
     }
 
     @Override
+    @Transactional
     public UserResponse createUserByAdmin(RegisterRequest request) {
         return registerInternal(request, RegistrationMode.ADMIN_PROVISIONED);
     }
 
     @Override
+    @Transactional
     public UserResponse lockUserByAdmin(String actorEmail, UUID userId) {
         User targetUser = resolveManageableUser(actorEmail, userId);
         if (targetUser.getStatus() != AccountStatus.BLOCKED) {
@@ -116,6 +121,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public UserResponse unlockUserByAdmin(String actorEmail, UUID userId) {
         User targetUser = resolveManageableUser(actorEmail, userId);
         if (targetUser.getStatus() != AccountStatus.APPROVED) {
@@ -128,6 +134,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public void deleteUserByAdmin(String actorEmail, UUID userId) {
         User targetUser = resolveManageableUser(actorEmail, userId);
         refreshTokenRepository.revokeByUserId(targetUser.getId());
@@ -136,6 +143,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public AuthResponse refreshToken(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new AuthException("Refresh token is required");
@@ -164,6 +172,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public void logout(String token) {
         if (token == null || token.isBlank()) {
             throw new AuthException("Refresh token is required");
@@ -179,6 +188,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
         if (request == null || request.getIdToken() == null || request.getIdToken().isBlank()) {
             throw new DomainException("Google ID token is required");
@@ -217,6 +227,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public UserResponse verifyEmail(String token) {
         String normalizedToken = token == null ? "" : token.trim();
         if (normalizedToken.isEmpty()) {
@@ -248,6 +259,7 @@ public class AuthServiceImpl
     }
 
     @Override
+    @Transactional
     public void resendEmailVerification(String email) {
         if (email == null || email.isBlank()) {
             throw new AuthException("Authentication required");
