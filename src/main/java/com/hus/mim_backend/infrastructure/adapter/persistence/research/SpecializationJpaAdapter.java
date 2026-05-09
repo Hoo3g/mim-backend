@@ -84,12 +84,7 @@ public class SpecializationJpaAdapter implements SpecializationRepository {
     @Override
     @Transactional
     public int deleteSpecialization(UUID specializationId) {
-        Optional<SpecializationEntity> existing = repository.findById(specializationId);
-        if (existing.isEmpty()) {
-            return 0;
-        }
-        repository.delete(existing.get());
-        return 1;
+        return repository.deleteByIdReturningCount(specializationId);
     }
 
     private ResearchCategoryResponse toResponse(SpecializationEntity entity) {

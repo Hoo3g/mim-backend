@@ -90,12 +90,7 @@ public class ResearchCategoryJpaAdapter implements ResearchCategoryRepository {
     @Override
     @Transactional
     public int deleteCategory(UUID categoryId) {
-        Optional<ResearchCategoryEntity> existing = repository.findById(categoryId);
-        if (existing.isEmpty()) {
-            return 0;
-        }
-        repository.delete(existing.get());
-        return 1;
+        return repository.deleteByIdReturningCount(categoryId);
     }
 
     private ResearchCategoryResponse toResponse(ResearchCategoryEntity entity) {

@@ -1,6 +1,8 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.post;
 
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -41,4 +43,13 @@ public interface RecruitmentCategoryJpaRepository extends JpaRepository<Recruitm
               AND LOWER(rc.name) IN :normalizedNames
             """)
     List<String> findActiveNamesByLowerNameIn(@Param("normalizedNames") Collection<String> normalizedNames);
+
+    @Modifying
+    @Transactional
+    @Query("""
+            DELETE
+            FROM RecruitmentCategoryEntity rc
+            WHERE rc.id = :recruitmentCategoryId
+            """)
+    int deleteByIdReturningCount(@Param("recruitmentCategoryId") UUID recruitmentCategoryId);
 }

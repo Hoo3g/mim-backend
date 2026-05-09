@@ -101,12 +101,7 @@ public class RecruitmentCategoryJpaAdapter implements RecruitmentCategoryReposit
     @Override
     @Transactional
     public int deleteRecruitmentCategory(UUID recruitmentCategoryId) {
-        Optional<RecruitmentCategoryEntity> existing = repository.findById(recruitmentCategoryId);
-        if (existing.isEmpty()) {
-            return 0;
-        }
-        repository.delete(existing.get());
-        return 1;
+        return repository.deleteByIdReturningCount(recruitmentCategoryId);
     }
 
     private ResearchCategoryResponse toResponse(RecruitmentCategoryEntity entity) {

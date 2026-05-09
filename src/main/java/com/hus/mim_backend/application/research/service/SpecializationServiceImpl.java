@@ -11,6 +11,7 @@ import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
             @CacheEvict(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.SPECIALIZATIONS_ALL, allEntries = true)
     })
+    @Transactional
     public ResearchCategoryResponse createSpecialization(CreateResearchCategoryRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -73,6 +75,7 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
             @CacheEvict(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.SPECIALIZATIONS_ALL, allEntries = true)
     })
+    @Transactional
     public Optional<ResearchCategoryResponse> updateSpecialization(UUID specializationId, UpdateResearchCategoryRequest request) {
         if (specializationId == null) {
             throw new DomainException("specializationId is required");
@@ -107,6 +110,7 @@ public class SpecializationServiceImpl implements QuerySpecializationUseCase, Ma
             @CacheEvict(cacheNames = CacheNames.PUBLIC_SPECIALIZATIONS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.SPECIALIZATIONS_ALL, allEntries = true)
     })
+    @Transactional
     public boolean deleteSpecialization(UUID specializationId) {
         if (specializationId == null) {
             throw new DomainException("specializationId is required");

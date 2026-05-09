@@ -1,6 +1,8 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.research;
 
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -50,4 +52,12 @@ public interface ResearchCategoryJpaRepository extends JpaRepository<ResearchCat
             """, nativeQuery = true)
     boolean existsOtherByNameIgnoreCase(@Param("categoryId") UUID categoryId,
             @Param("categoryName") String categoryName);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+            DELETE FROM research_categories
+            WHERE id = :categoryId
+            """, nativeQuery = true)
+    int deleteByIdReturningCount(@Param("categoryId") UUID categoryId);
 }

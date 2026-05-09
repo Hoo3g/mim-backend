@@ -14,6 +14,7 @@ import com.hus.mim_backend.application.rbac.model.UserRbacAssignment;
 import com.hus.mim_backend.application.rbac.usecase.ManageRbacUseCase;
 import com.hus.mim_backend.domain.shared.DomainException;
 import com.hus.mim_backend.shared.constants.RbacPermissions;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -102,6 +103,7 @@ public class RbacServiceImpl implements ManageRbacUseCase {
     }
 
     @Override
+    @Transactional
     public UserRbacAssignmentResponse updateUserOverrides(UUID userId, UpdateUserPermissionOverridesRequest request) {
         if (userId == null) {
             throw new DomainException("userId is required");
@@ -127,6 +129,7 @@ public class RbacServiceImpl implements ManageRbacUseCase {
     }
 
     @Override
+    @Transactional
     public UserRbacAssignmentResponse updateUserRole(String actorEmail, UUID userId, UpdateUserRoleRequest request) {
         if (userId == null) {
             throw new DomainException("userId is required");

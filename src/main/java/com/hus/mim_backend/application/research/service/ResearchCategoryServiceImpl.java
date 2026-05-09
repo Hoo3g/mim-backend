@@ -11,6 +11,7 @@ import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL, allEntries = true)
     })
+    @Transactional
     public ResearchCategoryResponse createCategory(CreateResearchCategoryRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -74,6 +76,7 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL, allEntries = true)
     })
+    @Transactional
     public Optional<ResearchCategoryResponse> updateCategory(UUID categoryId, UpdateResearchCategoryRequest request) {
         if (categoryId == null) {
             throw new DomainException("categoryId is required");
@@ -108,6 +111,7 @@ public class ResearchCategoryServiceImpl implements QueryResearchCategoryUseCase
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RESEARCH_CATEGORIES, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.RESEARCH_CATEGORIES_ALL, allEntries = true)
     })
+    @Transactional
     public boolean deleteCategory(UUID categoryId) {
         if (categoryId == null) {
             throw new DomainException("categoryId is required");

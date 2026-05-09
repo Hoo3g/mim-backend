@@ -5,6 +5,7 @@ import com.hus.mim_backend.application.content.dto.UpdateResearchHeroContentRequ
 import com.hus.mim_backend.application.content.usecase.ManageResearchHeroContentUseCase;
 import com.hus.mim_backend.application.port.output.ResearchHeroContentRepository;
 import com.hus.mim_backend.domain.shared.DomainException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ public class ResearchHeroContentServiceImpl implements ManageResearchHeroContent
     }
 
     @Override
+    @Transactional
     public ResearchHeroContentResponse updateResearchHeroContent(String updatedByEmail,
             UpdateResearchHeroContentRequest request) {
         validateRequest(request);

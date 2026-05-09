@@ -1,6 +1,8 @@
 package com.hus.mim_backend.infrastructure.adapter.persistence.research;
 
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,4 +44,12 @@ public interface SpecializationJpaRepository extends JpaRepository<Specializatio
             """, nativeQuery = true)
     boolean existsOtherByNameIgnoreCase(@Param("specializationId") UUID specializationId,
             @Param("specializationName") String specializationName);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+            DELETE FROM specializations
+            WHERE id = :specializationId
+            """, nativeQuery = true)
+    int deleteByIdReturningCount(@Param("specializationId") UUID specializationId);
 }

@@ -10,6 +10,7 @@ import com.hus.mim_backend.application.shared.PagedResult;
 import com.hus.mim_backend.domain.shared.DomainException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashSet;
@@ -62,6 +63,7 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
     }
 
     @Override
+    @Transactional
     public boolean moderatePost(String moderatorEmail, UUID postId, AdminModerationActionRequest request) {
         ModerationAction action = normalizeAction(request);
         UUID moderatorId = resolveModeratorId(moderatorEmail);
@@ -78,6 +80,7 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
     }
 
     @Override
+    @Transactional
     public boolean moderatePaper(String moderatorEmail, UUID paperId, AdminModerationActionRequest request) {
         ModerationAction action = normalizeAction(request);
         UUID moderatorId = resolveModeratorId(moderatorEmail);
@@ -94,6 +97,7 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
     }
 
     @Override
+    @Transactional
     public boolean deletePost(String moderatorEmail, UUID postId, String comment) {
         UUID moderatorId = resolveModeratorId(moderatorEmail);
         String normalizedComment = normalizeOptionalComment(comment);
@@ -109,6 +113,7 @@ public class AdminModerationServiceImpl implements AdminModerationUseCase {
     }
 
     @Override
+    @Transactional
     public boolean deletePaper(String moderatorEmail, UUID paperId, String comment) {
         UUID moderatorId = resolveModeratorId(moderatorEmail);
         String normalizedComment = normalizeOptionalComment(comment);

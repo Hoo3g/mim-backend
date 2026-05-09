@@ -11,6 +11,7 @@ import com.hus.mim_backend.shared.constants.CacheNames;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public class RecruitmentCategoryServiceImpl implements QueryRecruitmentCategoryU
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RECRUITMENT_CATEGORIES, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.RECRUITMENT_CATEGORIES_ALL, allEntries = true)
     })
+    @Transactional
     public ResearchCategoryResponse createRecruitmentCategory(CreateResearchCategoryRequest request) {
         if (request == null) {
             throw new DomainException("Request body is required");
@@ -73,6 +75,7 @@ public class RecruitmentCategoryServiceImpl implements QueryRecruitmentCategoryU
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RECRUITMENT_CATEGORIES, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.RECRUITMENT_CATEGORIES_ALL, allEntries = true)
     })
+    @Transactional
     public Optional<ResearchCategoryResponse> updateRecruitmentCategory(UUID recruitmentCategoryId,
                                                                         UpdateResearchCategoryRequest request) {
         if (recruitmentCategoryId == null) {
@@ -108,6 +111,7 @@ public class RecruitmentCategoryServiceImpl implements QueryRecruitmentCategoryU
             @CacheEvict(cacheNames = CacheNames.PUBLIC_RECRUITMENT_CATEGORIES, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.RECRUITMENT_CATEGORIES_ALL, allEntries = true)
     })
+    @Transactional
     public boolean deleteRecruitmentCategory(UUID recruitmentCategoryId) {
         if (recruitmentCategoryId == null) {
             throw new DomainException("recruitmentCategoryId is required");

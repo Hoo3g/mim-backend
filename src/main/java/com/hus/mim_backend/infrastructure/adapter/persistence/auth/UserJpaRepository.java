@@ -106,4 +106,13 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, UUID> {
     void upsertCompanyRegistration(@Param("userId") UUID userId,
             @Param("companyName") String companyName,
             @Param("website") String website);
+
+    @Modifying
+    @Transactional
+    @Query("""
+            DELETE
+            FROM UserEntity u
+            WHERE u.id = :userId
+            """)
+    int deleteByIdReturningCount(@Param("userId") UUID userId);
 }
